@@ -1,2 +1,4 @@
-fastqc
-cutadapt=1.8.0
+snakemake=3.8.0
+python=3.5.0
+fastqc=0.11.5
+cutadapt=1.10
