@@ -1,69 +1,59 @@
 configfile: "config.json"
 
-rule all:
-    input:
-       "analysis_path/{sample}/{sample}.r1.allTrimmed.fastqc", #don't know the exact names
-       "analysis_path/{sample}/{sample}.r2.allTrimmed.fastqc",
-       "analysis_path/{sample}/{sample}.singletts.fastqc"
+rule getbundle:
+    ''' Soft-link the decoy file from previusly downloaded directory
+    indicated in config file'''
+    output: "indexfiles/human_g1k_v37_decoy.fasta"
+    input: "human_g1k_v37_decoy.fasta"
+    shell: "ln -s config[gatk_bundle]/{input} {output}"
 
-rule wgaAdaptorTrimmer:
+rule bowtie2:
+    ''' Mapping alternative 1: using bowtie '''
     input:
-        "{sample}.{read}.fastq.gz"
+        r1="trimmed_files/{dir}/{sample}.r1.allTrimmed.fq.gz",
+        r2="trimmed_files/{dir}/{sample}.r2.allTrimmed.fq.gz",
+        decoy="indexfiles/"human_g1k_v37_decoy.fasta"
     output:
-        temp("{sample}.{read}.wgaTrimmed2.fq")
-    log:
-        "analysis_path/log/RubiconWgaTrimming.{sample}.{read}.log.txt"
-    shell:
-        "python2.7 scripts/wgaAdapterTrimmer.py -i {input} > {output} 2> {log};"
-
-rule cutadapt:
-    input:
-        "{sample}.{read}.wgaTrimmed2.fq"
-    output:
-        temp("{sample}.{read}.wgaAndilluminaTrimmed.fq")
+        temp("/analysis_path/{sample}/data/{sample}.bowtie2.bam")
     params:
-        " ".join(expand("-a {seq}", seq=config["adapterseqs"]))
+        bowtie="--maxins 2000 -p16",
+        java="-Xmx5g",
+        picard="MAX_RECORDS_IN_RAM=2500000 INPUT=/dev/stdin"
     log:
-        "analysis_path/logs/illuminaAndNexteraTrimming.{sample}.{read}.log.txt"
+        bowtie2="logs/bowtie2.bowtie2.{sample}.log",
+        picard="logs/bowtie2.sam2bam.{sample}.log",
     shell:
-        "cutadapt -n 3 {params} {input} > {output} 2> {log};"
+        "bowtie {params.bowtie} -1 {input.r1} -2 {input.r2} -x {input.decoy} 2> {log.bowtie2} |"
+        "java {params.java} -jar /picard/SamFormatConverter.jar {input.picard} OUPUT={output} > {log.picard} 2>&1"
 
-rule TrimBWAstyle:
-    input:
-       "{sample}.{read}.wgaAndilluminaTrimmed.fq"
-    output:
-        temp("{sample}.{read}.wgaIlluminaAndQualityTrimmed.fq")
-    log:
-        "analysis_path/logs/qualityTrimming.{sample}.{read}.log.txt"
-    shell:
-        "perl scripts/TrimBWAstyle.pl {input} > {output} 2> {log};"
 
-rule removeEmptyReads:
+rule bwa:
+    ''' Mapping alternative 1: using bwa '''
     input:
-        "{sample}.r1.wgaIlluminaAndQualityTrimmed.fq",
-        "{sample}.r2.wgaIlluminaAndQualityTrimmed.fq"
+        r1="trimmed_files/{dir}/{sample}.r1.allTrimmed.fq.gz",
+        r2="trimmed_files/{dir}/{sample}.r2.allTrimmed.fq.gz",
+        decoy="indexfiles/"human_g1k_v37_decoy.fasta"
     output:
-        "analysis_path/{sample}.r1.allTrimmed.fq.gz", 
-        "analysis_path/{sample}.r2.allTrimmed.fq.gz", 
-        "analysis_path/{sample}.singletts.fq.gz"
+        temp("/analysis_path/{sample}/data/{sample}.bwa.bam")
     params:
-        "analysis_path/{sample}.r1.allTrimmed.fq",
-        "analysis_path/{sample}.r2.allTrimmed.fq",
-        "analysis_path/{sample}.singletts.fq",
+        bwa="mem -M -t 16",
+        java="-Xmx5g",
+        picard="MAX_RECORDS_IN_RAM=2500000 INPUT=/dev/stdin"
     log:
-        "analysis_path/logs/removeEmptyReads.{sample}.log.txt"
+        bwa="logs/bwa.bwa.{sample}.log",
+        picard="logs/bwa.sam2bam.{sample}.log",
     shell:
-        "python scripts/removeEmptyReads.py {input} {params} 2> {log};"
-        "gzip {params};"
+        "bwa {params.bwa} {input.decoy} {input.r1} {input.r2}  2> {log.bwa} |"
+        "java {params.java} -jar /picard/SamFormatConverter.jar {input.picard} OUPUT={output} > {log.picard} 2>&1"
 
-rule fastqc:
+
+rule filter:
     input:
-        "analysis_path/{sample}.{data}.fq.gz"
+        "/analysis_path/{sample}/data/{sample}.{mapper}.bam"
     output:
-        "analysis_path/{sample}/{sample}.{data}_fastqc.zip" #don't know the exact names
-    params:
-        "analysis_path/{sample}.{data}_fastqc.zip" #don't know the exact names
+        "config[tmp]/{sample}.multimappersRemoved.{mapper}.bam
+    log:
     shell:
-        "fastqc {input};"
-        "mv -v {params} {output};"
+
+        
 
