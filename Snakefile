@@ -1,121 +1,190 @@
 configfile: "config.json"
 
 rule getbundle:
-    ''' Soft-link the decoy  and bundle files from previusly downloaded directory
+    ''' Soft-link the reference  and bundle files from previusly downloaded directory
     indicated in config file'''
     output:
-        decoy = "indexfiles/human_g1k_v37_decoy.fasta", 
-        bundle1 = "indexfiles/Mills_and_1000G_gold_standard.indels.b37.vcf",
-        bundle2 = "indexfiles/1000G_phase1.indels.b37.vcf"
+        REFERENCE = "indexfiles/human_g1k_v37_reference.fasta", 
+        MILLS = "indexfiles/Mills_and_1000G_gold_standard.indels.b37.vcf",
+        KGINDELS = "indexfiles/1000G_phase1.indels.b37.vcf"
     params:
-        decoy = "human_g1k_v37_decoy.fasta",
-        bundle1 = "bundle/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf",
-        bundle2 = "bundle/2.8/b37/1000G_phase1.indels.b37.vcf"
+        REFERENCE = "human_g1k_v37_reference.fasta",
+        MILLS = "bundle/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf",
+        KGINDELS = "bundle/2.8/b37/1000G_phase1.indels.b37.vcf"
     shell:
-        "ln -s config[gatk_bundle]/{params.decoy} {output.decoy}",
-        "ln -s config[gatk_bundle]/{params.bundle1} {output.bundle1}",
-        "ln -s config[gatk_bundle]/{params.bundle2} {output.bundle2}"
+        "ln -s config[gatk_bundle]/{params.REFERENCE} {output.REFERENCE}",
+        "ln -s config[gatk_bundle]/{params.MILLS} {output.MILLS}",
+        "ln -s config[gatk_bundle]/{params.KGINDELS} {output.KGINDELS}"
+
+
 
 rule bowtie2:
     ''' Mapping alternative 1: using bowtie '''
     input:
-        r1="trimmed_files/{dir}/{sample}.r1.allTrimmed.fq.gz",
-        r2="trimmed_files/{dir}/{sample}.r2.allTrimmed.fq.gz",
-        decoy="indexfiles/"human_g1k_v37_decoy.fasta"
+        r1 ="/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r1.allTrimmed.fq.gz",
+        r2 ="/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r2.allTrimmed.fq.gz",
+        REFERENCE ="indexfiles/human_g1k_v37_reference.fasta"
     output:
-        temp("/analysis_path/{sample}/data/{sample}.bowtie2.bam")
+        mapped_bam = "/analysis_path/{sample}/data/{sample}.mapped.bowtie2.bam",
     params:
-        bowtie="--maxins 2000 -p16",
-        java="-Xmx5g",
-        picard="MAX_RECORDS_IN_RAM=2500000 INPUT=/dev/stdin"
+        bowtie2 ="--maxins 2000 -p16",
+        java ="-Xmx5g",
+        sam2bam ="MAX_RECORDS_IN_RAM=2500000" 
     log:
-        bowtie2="logs/bowtie2.bowtie2.{sample}.log",
-        picard="logs/bowtie2.sam2bam.{sample}.log",
+        bowtie2 ="/analysis_path/{sample}/logs/bowtie2.{sample}.bowtie2.log",
+        sam2bam ="/analysis_path/{sample}/logs/picard.sam2bam.{sample}.bowtie2.log"
     shell:
-        "bowtie {params.bowtie} -1 {input.r1} -2 {input.r2} -x {input.decoy} 2> {log.bowtie2} |"
-        "java {params.java} -jar /picard/SamFormatConverter.jar {input.picard} OUPUT={output} > {log.picard} 2>&1"
+        "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {input.REFERENCE} 2> {log.bowtie2} |"
+        "java {params.java} -jar /picard/SamFormatConverter.jar {params.sam2bam} INPUT=/dev/stdin OUPUT={output.mapped_bam} > {log.sam2bam} 2>&1"
+
 
 
 rule bwa:
     ''' Mapping alternative 1: using bwa '''
     input:
-        r1="trimmed_files/{dir}/{sample}.r1.allTrimmed.fq.gz",
-        r2="trimmed_files/{dir}/{sample}.r2.allTrimmed.fq.gz",
-        decoy="indexfiles/"human_g1k_v37_decoy.fasta"
+        r1 ="/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r1.allTrimmed.fq.gz",
+        r2 ="/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r2.allTrimmed.fq.gz",
+        REFERENCE ="indexfiles/"human_g1k_v37_reference.fasta"
     output:
-        temp("/analysis_path/{sample}/data/{sample}.bwa.bam")
+        mapped_bam = "/analysis_path/{sample}/data/{sample}.mapped.bwa.bam"
     params:
-        bwa="mem -M -t 16",
-        java="-Xmx5g",
-        picard="MAX_RECORDS_IN_RAM=2500000 INPUT=/dev/stdin"
+        bwa = "-M -t 16",
+        java ="-Xmx5g",
+        sam2bam ="MAX_RECORDS_IN_RAM=2500000"
     log:
-        bwa="logs/bwa.bwa.{sample}.log",
-        picard="logs/bwa.sam2bam.{sample}.log",
+        bwa = "/analysis_path/{sample}/logs/bwa.{sample}.bwa.log",
+        sam2bam ="/analysis_path/{sample}/logs/picard.sam2bam.{sample}.bwa.log"
     shell:
-        "bwa {params.bwa} {input.decoy} {input.r1} {input.r2}  2> {log.bwa} |"
-        "java {params.java} -jar /picard/SamFormatConverter.jar {input.picard} OUPUT={output} > {log.picard} 2>&1"
+        "bwa mem {params.bwa} {input.REFERENCE} {input.r1} {input.r2}  2> {log.bwa} |"
+        "java {params.java} -jar /picard/SamFormatConverter.jar {params.sam2bam} INPUT=/dev/stdin OUPUT={output.mapped_bam} > {log.sam2bam} 2>&1"
 
 
-rule filter:
+
+If there are more than one pair fastqs, run:
+rule merge:
     input:
-        "/analysis_path/{sample}/data/{sample}.{mapper}.bam"
+        mapped_bam1 = "/analysis_path/{sample}/data/{sample}.mapped.{mapper}.bam",
+        mapped_bam2 = "/analysis_path/{sample}/data/{sample}.mapped.{mapper}.bam" (fix here so it works with multiple bams)
     output:
-        "/analysis_path/{sample}/data/{sample}.fixed.{mapper}.bam"
+        merged_bam = "/analysis_path/{sample}/data/{sample}.merged.{mapper}.bam",
+        flagstat = "/analysis_path/{sample}/data/{sample}.flagstat.merged.{mapper}.txt"
     params:
-        samtools="b -q 2 -F 1028",
-        java = "-Xmx5g",
-        sortsam = "MAX_RECORDS_IN_RAM=2500000 SORT_ORDER=coordinate" INPUT=/dev/stdin ,
-        addorreplacereadgroup = "MAX_RECORDS_IN_RAM=2500000 INPUT=/dev/stdin CREATE_INDEX=true RGID=SAMPLE RGLB=SAMPLE RGPL=ILLUMINA RGSM=SAMPLE RGCN=\¶"NA\" RGPU=\"NA\""
+        java = "-Xmx5g"
     log:
-        samtools = "logs/filter.samtools.{sample}.{mapper}.log",
-        sortsam = "logs/filter.sortsam.{sample}.{mapper}.log",
-        sortsam = "logs/filter.addorreplacereadgroup.{sample}.{mapper}.log"
+        merge = "/analysis_path/{sample}/logs/picard.merge.{sample}.{mapper}.log",
+        buildbamindex = "/analysis_path/{sample}/logs/merge.picard.buildbamindex.{sample}.{mapper}.log"
     shell:
-        "samtools view {params.samtools} {input} 2> {log.samtools} |"
-        "java {params.java} /picard/SortSam.jar {params.SortSam} 2> {log.sortsam} |"
-        "java {params.java} /picard/AddOrReplaceReadGroups.jar {params.addorreplacereadgroup} OUTPUT={output} 2> {log.addorreplacereadgroup}"
+        "java {params.java} -jar picard/MergeSamFiles.jar INPUT={input.mapped_bam1} INPUT={input.mapped_bam2} OUTPUT={output.merged_bam} 1>&2  2> {log.merge}"
+        "java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.merged_bam} > {logs.buildbamindex} 2>&1;"
+        "samtools flagstat {output.merged_bam} > {output.flagstat}"
+
+
+If there are one pair fastq, run:
+rule mv:
+    input:
+        mapped_bam = "/analysis_path/{sample}/data/{sample}.mapped.{mapper}.bam"
+    output:
+        merged_bam = "/analysis_path/{sample}/data/{sample}.merged.{mapper}.bam",
+        flagstat = "/analysis_path/{sample}/data/{sample}.flagstat.merged.{mapper}.txt"
+    log:
+        merge = "/analysis_path/{sample}/logs/mv.merge.{sample}.{mapper}.log",
+        buildbamindex = "/analysis_path/{sample}/logs/merge.picard.buildbamindex.{sample}.{mapper}.log"
+    shell:
+        "mv -v {input.mapped_bam} {output.merged_bam} >&2 {log.merge}"
+        "java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.merged_bam} > {logs.buildbamindex} 2>&1;"
+        "samtools flagstat {output.merged_bam} > {output.flagstat}"
+  
+      
+      
+
+rule filter_and_fix:
+    input:
+        merged_bam = "/analysis_path/{sample}/data/{sample}.merged.{mapper}.bam
+    output:
+        fixed_bam = "/analysis_path/{sample}/data/{sample}.fixed.{mapper}.bam"
+    params:
+        filters ="b -q 2 -F 1028",
+        java = "-Xmx5g",
+        sortsam = "MAX_RECORDS_IN_RAM=2500000 SORT_ORDER=coordinate",
+        addorReplaceReadgroup = "MAX_RECORDS_IN_RAM=2500000 CREATE_INDEX=true RGID=SAMPLE RGLB=SAMPLE RGPL=ILLUMINA RGSM=SAMPLE RGCN=\"NA\" RGPU=\"NA\"" 
+    log:
+        filters = "/analysis_path/{sample}/logs/fnf.samtools.filters.{sample}.{mapper}.log",
+        sortsam = "/analysis_path/{sample}/logs/fnf.picard.sortsam.{sample}.{mapper}.log",
+        addorreplacereadgroup = "/analysis_path/{sample}/logs/fnf.picard.addorreplacereadgroup.{sample}.{mapper}.log"
+    shell:
+        "samtools view {params.filters} {input.merged_bam} 2> {log.samtools} |"
+        "java {params.java} /picard/sortsam.jar {params.sortsam} INPUT=/dev/stdin 2> {log.sortsam} |"
+        "java {params.java} /picard/addOrReplaceReadGroups.jar {params.addorreplacereadgroup} INPUT=/dev/stdin OUTPUT={output.fixed_bam} 2> {log.addorreplacereadgroup}"
         
 
         
 rule realignertargetcreator:
     input:
-        decoy = "human_g1k_v37_decoy.fasta",
-        data = "/analysis_path/{sample}/data/{sample}.fixed.{mapper}.bam",
-        bundle1 = "bundle/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf",
-        bundle2 = "bundle/2.8/b37/1000G_phase1.indels.b37.vcf"
+        fixed_bam = "/analysis_path/{sample}/data/{sample}.fixed.{mapper}.bam",
+        REFERENCE = "human_g1k_v37_reference.fasta",
+        MILLS = "bundle/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf",
+        KGINDELS = "bundle/2.8/b37/1000G_phase1.indels.b37.vcf"
     output:
-        "/analysis_path/{sample}/data/{sample}.reAlignemntTargetIntervals.{mapper}.bed"
+        targets = "/analysis_path/{sample}/data/{sample}.reAlignemntTargetIntervals.{mapper}.bed"
     params:
         java = "-Xmx5g",
-        prog = "-T RealignerTargetCreator -nt 16"
+        target_creator = "-nt 16"
     log:
-        "logs/realigntargetcreator.{sample}.{mapper}.log"
+        target_creator = "/analysis_path/{sample}/logs/realigntargetcreator.{sample}.{mapper}.log"
     shell:
-        "java {params.java} -jar GenomeAnalysisTK.jar {params.prog} -R {input.decoy} -I {input.data} -known {input.bundle1} -known {input.bundle1} -o {output} > {log} 2> &1;"
+        "java {params.java} -jar GenomeAnalysisTK.jar -T RealignerTargetCreator {params.target_creator} -R {input.REFERENCE} -I {input.fixed_bam} -known {input.MILLS} -known {input.KGINDELS} -o {output.targets} > {log.target_creator} 2> &1;"
 
 
 rule realignindels:
     input:
-        data = "/analysis_path/{sample}/data/{sample}.fixed.{mapper}.bam",
-        decoy = "human_g1k_v37_decoy.fasta",
-        bundle1 = "bundle/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf",
-        bundle2 = "bundle/2.8/b37/1000G_phase1.indels.b37.vcf",
-        target = "/analysis_path/{sample}/data/{sample}.reAlignemntTargetIntervals.{mapper}.bed"
+        fixed_bam = "/analysis_path/{sample}/data/{sample}.fixed.{mapper}.bam",
+        REFERENCE = "human_g1k_v37_reference.fasta",
+        MILLS = "bundle/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf",
+        KGINDELS = "bundle/2.8/b37/1000G_phase1.indels.b37.vcf",
+        targets = "/analysis_path/{sample}/data/{sample}.reAlignemntTargetIntervals.{mapper}.bed"
     output:
-        genomeanalysis = "/analysis_path/{sample}/data/{sample}.reAligned.bam",
-#         buildbamindex = "", #no output for this????
-        flagstat = "/analysis_path/{sample}/logs/Flagstat.{sample}.txt",
-        bamtobed = "/analysis_path/{sample}/data/{sample}.bed"
+        realigned_bam = "/analysis_path/{sample}/data/{sample}.reAligned.{mapper}.bam",
+#        buildbamindex = "", #no output for this???? It is written so that an index file (.bai) is put in the same dict and with the same name as bam
+        flagstat = "/analysis_path/{sample}/data/{sample}.flagstat.realigned.{mapper}.txt",
+        ginkgo_bed = "/analysis_path/{sample}/data/{sample}.ginkgo.{mapper}.bed"
     params:
-        java = "-Xmx5g",
-        genomeanalysis = "-T IndelRealigner}"
+        java = "-Xmx5g"
+        
     log:
-        genomeanalysis = "logs/realignindels.genomeanalysis.{sample}.{mapper}.log",
-        buildbamindex = "logs/realignindels.buildbamindex.{sample}.{mapper}.log",
-        flagstat = "logs/realignindels.flagstat.{sample}.{mapper}.log",
-        bamtobed = "logs/realignindels.bamtobed.{sample}.{mapper}.log",
+        realign = "/analysis_path/{sample}/logs/reAlign.GATK.realignindels.{sample}.{mapper}.log",
+        buildbamindex = "/analysis_path/{sample}/logs/reAlign.picard.buildbamindex.{sample}.{mapper}.log",
+        bamtobed = "/analysis_path/{sample}/logs/reAlign.bam2bed.{sample}.{mapper}.log"
     shell:
-        "java {params.java} -jar GenomeAnalysisTK.jar {params.genmeanalysis} -I {input.data} -R {input.decoy}  -known {input.bundle1} -known {input.bundle2} -o {output.genomeanalysis} > {log.genomeanalysis} 2>&1;"
-        "java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.genomeanalysis} > {logs.buildbamindex} 2>&1;"
-        "samtools flagstat {output.genomeanalysis} > output.flagstat 2> {log.flagstat};"
-        "bamToBed -i {output.genomeanalysis} > /analysis_path/SAMPLE{sample}/data/SAMPLE{sample}·{mapper}.bed 2> {log.bamToBed}"
+        "java {params.java} -jar GenomeAnalysisTK.jar -T IndelRealigner -I {input.fixed_bam} -R {input.REFERENCE} -targetIntervals {input.targets} -o {output.realigned_bam} -known {input.MILLS} -known {input.KGINDELS} 1>&2 2> {log.realign} 2>&1;"
+        "java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.realigned_bam} > {logs.buildbamindex} 2>&1;"
+        "samtools flagstat {output.realigned_bam} > {output.flagstat}"
+        "bamToBed -i {output.realigned_bam} > {output.ginkgo_bed} 2> {log.bamtoted}"
+        
+                
+rule freebayes:
+    input:
+        realigned_bam = "/analysis_path/{sample}/data/{sample}.reAligned.{mapper}.bam",
+        REFERENCE = "human_g1k_v37_reference.fasta"
+    output:
+        vcf = "/analysis_path/{sample}/data/{sample}.freebayes.{mapper}.vcf"
+    log:
+        freebayes = "/analysis_path/{sample}/logs/freebayes.{sample}.{mapper}.log"
+    shell:
+        "freebayes -f {input.REFERENCE} {input.realigned_bam} {output.vcf} 2> {log.freebayes}"
+        
+
+        
+
+
+# how much memory
+# global variable ref and bundle and different bams
+# /dev/stdin??? (picard input)
+# and is dev/stdin updated in rule filter
+# 2>, 1>&2  2>
+# var kommer {mapper} ifrån
+# add replace read group might not work pga SAMPLE
+# bamtobed needs samtools
+# can MAX_RECORDS_IN_RAM=2500000 be removed from picard
+# what is ; (in realignindels)
+# rm bams after next step
+#can param and log variable have same name?
