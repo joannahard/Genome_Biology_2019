@@ -1,4 +1,5 @@
 configfile: "config.json"
+import snakemake_helper
 
 rule getbundle:
     ''' Soft-link the reference  and bundle files from previusly downloaded directory
@@ -12,39 +13,39 @@ rule getbundle:
         MILLS = "bundle/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf",
         KGINDELS = "bundle/2.8/b37/1000G_phase1.indels.b37.vcf"
     shell:
-        "ln -s config[gatk_bundle]/{params.REFERENCE} {output.REFERENCE}",
-        "ln -s config[gatk_bundle]/{params.MILLS} {output.MILLS}",
-        "ln -s config[gatk_bundle]/{params.KGINDELS} {output.KGINDELS}"
+        "ln -s config[gatk_bundle]/{params.REFERENCE} {output.REFERENCE};"
+        "ln -s config[gatk_bundle]/{params.MILLS} {output.MILLS};"
+        "ln -s config[gatk_bundle]/{params.KGINDELS} {output.KGINDELS};"
 
 
 
 rule bowtie2:
     ''' Mapping alternative 1: using bowtie '''
     input:
-        r1 ="/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r1.allTrimmed.fq.gz",
-        r2 ="/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r2.allTrimmed.fq.gz",
-        REFERENCE ="indexfiles/human_g1k_v37_reference.fasta"
+        r1 = "/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r1.allTrimmed.fq.gz",
+        r2 = "/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r2.allTrimmed.fq.gz",
+        REFERENCE = "indexfiles/human_g1k_v37_reference.fasta"
     output:
         mapped_bam = "/analysis_path/{sample}/data/{sample}.mapped.bowtie2.bam",
     params:
-        bowtie2 ="--maxins 2000 -p16",
-        java ="-Xmx5g",
-        sam2bam ="MAX_RECORDS_IN_RAM=2500000" 
+        bowtie2 = "--maxins 2000 -p16",
+        java = "-Xmx5g",
+        sam2bam = "MAX_RECORDS_IN_RAM=2500000" 
     log:
-        bowtie2 ="/analysis_path/{sample}/logs/bowtie2.{sample}.bowtie2.log",
-        sam2bam ="/analysis_path/{sample}/logs/picard.sam2bam.{sample}.bowtie2.log"
+        bowtie2 = "/analysis_path/{sample}/logs/bowtie2.{sample}.bowtie2.log",
+        sam2bam = "/analysis_path/{sample}/logs/picard.sam2bam.{sample}.bowtie2.log"
     shell:
         "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {input.REFERENCE} 2> {log.bowtie2} |"
-        "java {params.java} -jar /picard/SamFormatConverter.jar {params.sam2bam} INPUT=/dev/stdin OUPUT={output.mapped_bam} > {log.sam2bam} 2>&1"
+        "java {params.java} -jar /picard/SamFormatConverter.jar {params.sam2bam} INPUT=/dev/stdin OUPUT={output.mapped_bam} > {log.sam2bam} 2>&1;"
 
 
 
 rule bwa:
     ''' Mapping alternative 1: using bwa '''
     input:
-        r1 ="/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r1.allTrimmed.fq.gz",
-        r2 ="/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r2.allTrimmed.fq.gz",
-        REFERENCE ="indexfiles/"human_g1k_v37_reference.fasta"
+        r1 = "/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r1.allTrimmed.fq.gz",
+        r2 = "/media/box2/Data/trimmed_fastq/{celltype}/{experiment}/{sample}.r2.allTrimmed.fq.gz",
+        REFERENCE = "indexfiles/human_g1k_v37_reference.fasta"
     output:
         mapped_bam = "/analysis_path/{sample}/data/{sample}.mapped.bwa.bam"
     params:
@@ -56,54 +57,42 @@ rule bwa:
         sam2bam ="/analysis_path/{sample}/logs/picard.sam2bam.{sample}.bwa.log"
     shell:
         "bwa mem {params.bwa} {input.REFERENCE} {input.r1} {input.r2}  2> {log.bwa} |"
-        "java {params.java} -jar /picard/SamFormatConverter.jar {params.sam2bam} INPUT=/dev/stdin OUPUT={output.mapped_bam} > {log.sam2bam} 2>&1"
+        "java {params.java} -jar /picard/SamFormatConverter.jar {params.sam2bam} INPUT=/dev/stdin OUPUT={output.mapped_bam} > {log.sam2bam} 2>&1;"
 
-
-
-If there are more than one pair fastqs, run:
+ 
 rule merge:
     input:
-        mapped_bam1 = "/analysis_path/{sample}/data/{sample}.mapped.{mapper}.bam",
-        mapped_bam2 = "/analysis_path/{sample}/data/{sample}.mapped.{mapper}.bam" (fix here so it works with multiple bams)
+        mapped_bams = lambda wildcards: config["metafiles"][wildcards.sample]
     output:
-        merged_bam = "/analysis_path/{sample}/data/{sample}.merged.{mapper}.bam",
-        flagstat = "/analysis_path/{sample}/data/{sample}.flagstat.merged.{mapper}.txt"
+        merged_bam = "analysis_path/{sample}/data/{sample}.merged.{mapper}.bam",
+        flagstat = "analysis_path/{sample}/data/{sample}.flagstat.merged.{mapper}.txt"
     params:
-        java = "-Xmx5g"
+        java = "-Xmx5g",
+        nbamfiles = lambda wildcards: len(config["metafiles"][wildcards.sample]),
+        picardinput = lambda wildcards: ["INPUT="+s for s in config["metafiles"][wildcards.sample]]
     log:
-        merge = "/analysis_path/{sample}/logs/picard.merge.{sample}.{mapper}.log",
-        buildbamindex = "/analysis_path/{sample}/logs/merge.picard.buildbamindex.{sample}.{mapper}.log"
+        merge = "analysis_path/{sample}/logs/merge.{sample}.{mapper}.log",
+        buildbamindex = "analysis_path/{sample}/logs/merge.buildbamindex.{sample}.{mapper}.log"
     shell:
-        "java {params.java} -jar picard/MergeSamFiles.jar INPUT={input.mapped_bam1} INPUT={input.mapped_bam2} OUTPUT={output.merged_bam} 1>&2  2> {log.merge}"
-        "java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.merged_bam} > {logs.buildbamindex} 2>&1;"
-        "samtools flagstat {output.merged_bam} > {output.flagstat}"
+        '''
+        if test {params.nbamfiles} -eq 1; then 
+           mv -v {input.mapped_bams} {output.merged_bam} >&2 {log.merge};
+        else
+           java {params.java} -jar picard/MergeSamFiles.jar {params.picardinput} OUTPUT={output.merged_bam} 1>&2  2> {log.merge}
+        fi'
+        java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.merged_bam} > {log.buildbamindex} 2>&1
+        samtools flagstat {output.merged_bam} > {output.flagstat}
+        '''
 
 
-If there are one pair fastq, run:
-rule mv:
-    input:
-        mapped_bam = "/analysis_path/{sample}/data/{sample}.mapped.{mapper}.bam"
-    output:
-        merged_bam = "/analysis_path/{sample}/data/{sample}.merged.{mapper}.bam",
-        flagstat = "/analysis_path/{sample}/data/{sample}.flagstat.merged.{mapper}.txt"
-    log:
-        merge = "/analysis_path/{sample}/logs/mv.merge.{sample}.{mapper}.log",
-        buildbamindex = "/analysis_path/{sample}/logs/merge.picard.buildbamindex.{sample}.{mapper}.log"
-    shell:
-        "mv -v {input.mapped_bam} {output.merged_bam} >&2 {log.merge}"
-        "java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.merged_bam} > {logs.buildbamindex} 2>&1;"
-        "samtools flagstat {output.merged_bam} > {output.flagstat}"
-  
-      
-      
 
 rule filter_and_fix:
     input:
-        merged_bam = "/analysis_path/{sample}/data/{sample}.merged.{mapper}.bam
+        merged_bam = "/analysis_path/{sample}/data/{sample}.merged.{mapper}.bam"
     output:
         fixed_bam = "/analysis_path/{sample}/data/{sample}.fixed.{mapper}.bam"
     params:
-        filters ="b -q 2 -F 1028",
+        filters = "b -q 2 -F 1028",
         java = "-Xmx5g",
         sortsam = "MAX_RECORDS_IN_RAM=2500000 SORT_ORDER=coordinate",
         addorReplaceReadgroup = "MAX_RECORDS_IN_RAM=2500000 CREATE_INDEX=true RGID=SAMPLE RGLB=SAMPLE RGPL=ILLUMINA RGSM=SAMPLE RGCN=\"NA\" RGPU=\"NA\"" 
@@ -114,9 +103,7 @@ rule filter_and_fix:
     shell:
         "samtools view {params.filters} {input.merged_bam} 2> {log.samtools} |"
         "java {params.java} /picard/sortsam.jar {params.sortsam} INPUT=/dev/stdin 2> {log.sortsam} |"
-        "java {params.java} /picard/addOrReplaceReadGroups.jar {params.addorreplacereadgroup} INPUT=/dev/stdin OUTPUT={output.fixed_bam} 2> {log.addorreplacereadgroup}"
-        
-
+        "java {params.java} /picard/addOrReplaceReadGroups.jar {params.addorreplacereadgroup} INPUT=/dev/stdin OUTPUT={output.fixed_bam} 2> {log.addorreplacereadgroup}" 
         
 rule realignertargetcreator:
     input:
@@ -179,7 +166,6 @@ rule freebayes:
 # how much memory
 # global variable ref and bundle and different bams
 # /dev/stdin??? (picard input)
-# and is dev/stdin updated in rule filter
 # 2>, 1>&2  2>
 # var kommer {mapper} ifrån
 # add replace read group might not work pga SAMPLE
