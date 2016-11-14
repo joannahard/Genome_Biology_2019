@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 exists=`conda info --envs|grep -v "#"|awk '{if($1=="j_frisen_1602") print 0}'`
 if test "$exists"="0"; then
     echo "Updating conda environemnt j_frisen_1602";
