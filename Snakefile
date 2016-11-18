@@ -248,24 +248,42 @@ rule sum_flagstat:
      shell:
           "cat {input.mapped} {input.merged} {input.realigned} > {output}"
 
+
+rule getbundle:
+    ''' Soft-link the reference  and bundle files from previusly downloaded directory
+        indicated in config file'''
+      input:
+        REFERENCE = config["bundle"]["genome"],
+        MILLS = config["bundle"]["mills"],
+        KGINDELS = config["bundle"]["kgindels"],
+      output:
+        REFERENCE = "indexfiles/human_g1k_v37_reference.fasta",
+        MILLS = "indexfiles/Mills_and_1000G_gold_standard.indels.b37.vcf",
+        KGINDELS = "indexfiles/1000G_phase1.indels.b37.vcf"
+      shell:
+        "mkdir -p indexfiles;"
+	"ln -s {input.REFERENCE} {output.REFERENCE};"
+	"ln -s {input.MILLS} {output.MILLS};"
+	"ln -s {input.KGINDELS} {output.KGINDELS};"
+
 """
-COMMENT: Do we really need this rule, gives error on the line "{ref}" what was that for?
 rule getbundle:
     ''' Soft-link the reference  and bundle files from previously downloaded directory
     indicated in config file'''
     output:
-        REFERENCE = "indexfiles/human_g1k_v37_reference.fasta", 
-        MILLS = "indexfiles/Mills_and_1000G_gold_standard.indels.b37.vcf",
-        KGINDELS = "indexfiles/1000G_phase1.indels.b37.vcf"
+	 
+#        REFERENCE = config["ref"]["genome"]
+#        MILLS = config["ref"]["mills"]
+#        KGINDELS = config["ref"]["kgindels"]
     params:
-        REFERENCE = "human_g1k_v37_reference.fasta",
-        MILLS = "bundle/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf",
-        KGINDELS = "bundle/2.8/b37/1000G_phase1.indels.b37.vcf"
+        REFERENCE = config["bundle"]["genome"]
+        MILLS = config["bundle"]["mills"]
+ 	KGINDELS = config["bundle"]["kgindels"]
     shell:
-        "{ref}"
-        "ln -s config[gatk_bundle]/{params.REFERENCE} {output.REFERENCE};"
-        "ln -s config[gatk_bundle]/{params.MILLS} {output.MILLS};"
-        "ln -s config[gatk_bundle]/{params.KGINDELS} {output.KGINDELS};"
+        "mkdir -p indexfiles;"
+	"ln -s {params.REFERENCE} {output.REFERENCE};"
+        "ln -s {params.MILLS} {output.MILLS};"
+        "ln -s {params.KGINDELS} {output.KGINDELS};"
+
 
 """
-
