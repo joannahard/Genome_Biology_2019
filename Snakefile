@@ -1,85 +1,139 @@
-configfile: "/media/box2/Experiments/Joanna/j_frisen_1602/j_frisen_1602/config.json"
-# import snakemake_helper
+configfile: "config.yaml"
+import snakemake_helper as sh
 
+FASTQDIR = config["settings"]["seqdir"]
+MAPPERS = config["settings"]["mapper"]
 
-REF = config["ref"]
-MILLS = config["mills"]
-KGINDELS = config["kgindels"]
+# read in sampleinfo file with function in sampleinfo.py
+sampleinfo = sh.read_sampleinfo(config)
+     
+TARGETS = [sampleinfo[x]["mergefmt"][0] for x in sampleinfo]
+print("Will try to create all target files for:")
+print(TARGETS)
 
+     
+# one rule to list all targets that needs to be created
+rule all_vcf:
+    input: expand( "results/{target}.freebayes.{mapper}.vcf", target=TARGETS,mapper=MAPPERS)
 
+# one rule to list all flagstat summary files
+rule all_flagstat:
+    input: expand( "results/{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
+
+     
+# need 2 rules for linking the fastq files in the results folder     
+rule link_fastq_no_ext:
+     input: FASTQDIR + "{experiment}/{sample}.{read}.allTrimmed.fq.gz"
+     output: "results/{experiment}/{sample}/{sample}.X.{read}.allTrimmed.fq.gz"
+     shell: "ln -s {input} {output}"
+         
+
+rule link_fastq_w_ext:
+     input:
+        FASTQDIR + "{experiment}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
+     output:
+        "results/{experiment}/{sample}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
+     shell:
+        "ln -s {input} {output}"
+     
 rule bwa:
     ''' Mapping alternative 1: using bowtie '''
     input:
-        r1 = "sequences/{experiment}/{sample}/{sample}{extension}.r1.allTrimmed.fq.gz",
-        r2 = "sequences/{experiment}/{sample}/{sample}{extension}.r2.allTrimmed.fq.gz",
+        r1 = "{sample}.r1.allTrimmed.fq.gz",
+        r2 = "{sample}.r2.allTrimmed.fq.gz",
+        ref = config["ref"]["genome"]  
     output:
-        "results/{experiment}/{sample}/data/{sample}{extension}.mapped.bwa.sam"
+        "{sample}.mapped.bwa.sam"
     params:
         "-M -t 16"
     log:
-        "results/{experiment}/{sample}/logs/bwa.{sample}{extension}.bwa.log",
+        "logs/bwa.{sample}.bwa.log",
     shell:
-        "bwa mem {params} {REF} {input.r1} {input.r2} 2> {log} > {output}"
+        "bwa mem {params} {input.ref} {input.r1} {input.r2} 2> {log} > {output}"
 
-#runs for bwa. not bowtie because it is missing a bowtie2 index
-# make tmp rules
-
-
-
-"""
 
 rule bowtie2:
     ''' Mapping alternative 1: using bowtie '''
     input:
-        r1 = "sequences/{experiment}/{sample}/{sample}{extension}.r1.allTrimmed.fq.gz",
-        r2 = "sequences/{experiment}/{sample}/{sample}{extension}.r2.allTrimmed.fq.gz",
+        r1 = "{sample}{exension}.r1.allTrimmed.fq.gz",
+        r2 = "{sample}{exension}.r2.allTrimmed.fq.gz",
+        ref = config["ref"]["genome"]  
     output:
-        "results/{experiment}/{sample}/data/{sample}{extension}.mapped.bowtie2.bam",
+        "{sample}{exension}.mapped.bowtie2.bam",
     params:
         bowtie2 = "--maxins 2000 -p16"
     log:
-        bowtie2 = "results/{experiment}/{sample}/logs/bowtie2.{sample}{extension}.bowtie2.log",
-        sam2bam = "results/{experiment}/{sample}/logs/picard.sam2bam.{sample}{extension}.bowtie2.log"
+        bowtie2 = "logs/bowtie2.{sample}{exension}.bowtie2.log",
+        sam2bam = "logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
     shell:
-        "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {REF} 2> {log.bowtie2} | "
+        "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
         "picard SamFormatConverter.jar INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} "
 
-# Make rule for bowtie index
-
-"""
-
+# COMMENT: Make rule for bowtie index
+# OBS! Then we also need to make one of the index files as the input for bowtie so that the rule will be executed...
 
 rule sam_to_bam:
     input:
-        "results/{experiment}/{sample}/data/{sample}{extension}.mapped.{mapper}.sam"
+        "{sample}.mapped.{mapper}.sam"
     output:
-        "results/{experiment}/{sample}/data/{sample}{extension}.mapped.{mapper}.bam"
+        "{sample}.mapped.{mapper}.bam"
     log:
-        "results/{experiment}/{sample}/logs/picard.sam2bam.{sample}{extension}.{mapper}.log"
+        "logs/picard.sam2bam.{sample}.{mapper}.log"
     shell:
         "picard SamFormatConverter INPUT={input} OUTPUT={output} > {log} 2>&1;"
+
         
 
-
-"""
-
-rule merge:
+# COMMENT (merge): did we need to change the command for running picard or does java -jar work?
+# COMMENT (merge); Do we really want to do bam index within the merge rule, do we not have to sort as well at some step, perhaps we can index within that rule?
+               
+rule merge_bam:
     input:
-        #mapped_bams = ["results/{experiment}/{sample}/data/" + s + ".mapped.bwa.bam" for s in ["B4C6.5","B4C6.6"]]
-        #mapped_bams = ["results/{experiment}/{sample}/data/" + s + ".mapped.bwa.bam" for s in lambda wildcards: config["metafiles"][wildcards.sample]]
-        mapped_bams = lambda wildcards: ["results/{wildcards.experiment}/{wildcards.sample}/data/" + s + ".mapped.bwa.bam" for s in config["metafiles"][wildcards.sample]]
+        lambda wildcards: [ "results/" + x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
     output:
-        test = "results/{experiment}/{sample}/data/{sample}.mergetest"
-    params: 
-        names = lambda wildcards: ["INPUT="+s for s in config["metafiles"][wildcards.sample]]
-    shell:        
-        "echo {names} > test"
-        
-        
+        "results/{experiment}/{sample}/{sample}.merged.{mapper}.bam"
+    params:
+        java = "-Xmx5g",
+    log:
+        merge = "results/{experiment}/{sample}/logs/merge.{sample}.{mapper}.log",
+        index = "results/{experiment}/{sample}/logs/merge.buildbamindex.{sample}.{mapper}.log"
+    run: 
+      if (len(input) > 1):
+          inputstr = " ".join(["INPUT={}".format(x) for x in input])
+          shell("java {param} picard/MergeSamFiles.jar {ips} OUTPUT={out} > {log}".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
+      else:
+          if os.path.exists(output.merge):
+              os.unlink(output.merge)
+          shutil.copy(input[0], output.merge)
+      shell("java {param} /picard/BuildBamIndex.jar INPUT={out} > {log}".format(param=params.java, out=output.merge, log=log.index))     
 
 
-#"B4C6": ["results/12MDAs/B4C6/data/B4C6.5.mapped.bwa.bam", "results/12MDAs/B4C6/data/B4C6.6.mapped.bwa.bam"],
+     
+"""
+snakemake -n -p results/10cells/C2/C2.X.r2.allTrimmed.fq.gz
+snakemake -n -p results/10cells/D2/D2.1.r1.allTrimmed.fq.gz
+Works!
 
+snakemake -n -p results/10cells/C2/C2.X.mapped.bowtie2.bam
+snakemake -n -p results/10cells/C2/C2.X.mapped.bwa.bam
+Works!
+
+snakemake -n -p results/10cells/D2/D2.1.mapped.bowtie2.bam
+snakemake -n -p results/10cells/D2/D2.1.mapped.bwa.bam
+
+snakemake -n -p results/10cells/D2/D2.merged.bowtie2.bam
+snakemake -n -p results/10cells/D2/D2.merged.bwa.bam
+
+snakemake -n -p results/10cells/C2/C2.merged.bwa.bam
+snakemake -n -p results/10cells/C2/C2.merged.bowtie2.bam
+
+snakemake -n -p results/10cells/D2/D2.fixed.bwa.bam
+snakemake -n -p results/10cells/C2/C2.fixed.bowtie2.bam
+
+snakemake -n -p results/10cells/C2/C2.freebayes.bowtie2.vcf
+snakemake -n -p results/10cells/D2/D2.freebayes.bwa.vcf
+
+#old merge with shell only
 rule merge:
     input:
         #mapped_bams = lambda wildcards: config["metafiles"][wildcards.sample]
@@ -104,81 +158,96 @@ rule merge:
         java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.merged_bam} > {log.buildbamindex} 2>&1
         samtools flagstat {output.merged_bam} > {output.flagstat}
         '''
-
-
+"""
 
 
 rule filter_and_fix:
     input:
-        "results/{experiment}/{sample}/data/{sample}.merged.{mapper}.bam"
+        "{sample}.merged.{mapper}.bam"
     output:
-        "results/{experiment}/{sample}/data/{sample}.fixed.{mapper}.bam"
+        "{sample}.fixed.{mapper}.bam"
     params:
         filters = "b -q 2 -F 1028",
         sort = "SORT_ORDER=coordinate",
         read_groups = "CREATE_INDEX=true RGID=SAMPLE RGLB=SAMPLE RGPL=ILLUMINA RGSM=SAMPLE RGCN=\"NA\" RGPU=\"NA\"" 
     log:
-        filters = "results/{experiment}/{sample}/logs/fnf.samtools.filters.{sample}.{mapper}.log",
-        sort = "results/{experiment}/{sample}/logs/fnf.picard.sortsam.{sample}.{mapper}.log",
-        read_groups = "results/{experiment}/{sample}/logs/fnf.picard.addorreplacereadgroup.{sample}.{mapper}.log"
+        filters = "logs/fnf.samtools.filters.{sample}.{mapper}.log",
+        sort = "logs/fnf.picard.sortsam.{sample}.{mapper}.log",
+        read_groups = "logs/fnf.picard.addorreplacereadgroup.{sample}.{mapper}.log"
     shell:
         "samtools view {params.filters} {input} 2> {log.filters} |"
         "picard SortSam.jar {params.sort} INPUT=/dev/stdin 2> {log.sort} |"
         "picard addOrReplaceReadGroups.jar {params.read_groups} INPUT=/dev/stdin OUTPUT={output} 2> {log.read_groups}" 
         
-
-
 rule realignertargetcreator:
     input:
-        "results/{experiment}/{sample}/data/{sample}.fixed.{mapper}.bam"
+        bam = "{sample}.fixed.{mapper}.bam",
+        ref = config["ref"]["genome"],
+        mills =  config["ref"]["mills"],
+        kgindels =  config["ref"]["kgindels"]      
     output:
-        "results/{experiment}/{sample}/data/{sample}.reAlignemntTargetIntervals.{mapper}.bed"
+        "{sample}.reAlignemntTargetIntervals.{mapper}.bed"
     params:
         "-nt 16"
     log:
-        target_creator = "results/{experiment}/{sample}/logs/realigntargetcreator.{sample}.{mapper}.log"
+        target_creator = "logs/realigntargetcreator.{sample}.{mapper}.log"
     shell:
-        "GenomeAnalysisTK.jar -T RealignerTargetCreator {params} -R {REF} -I {input} -known {MILLS} -known {KGINDELS} -o {output} > {log.target_creator} 2> &1;"
+        "GenomeAnalysisTK.jar -T RealignerTargetCreator {params} -R {input.ref} -I {input.bam} -known {input.mills} -known {input.kgindels} -o {output} > {log.target_creator} 2> &1;"
         
-
-
 
 rule realignindels:
     input:
-        fixed_bam = "results/{experiment}/{sample}/data/{sample}.fixed.{mapper}.bam",
-        targets = "results/{experiment/{sample}/data/{sample}.reAlignemntTargetIntervals.{mapper}.bed"
+        fixed_bam = "{sample}.fixed.{mapper}.bam",
+        targets = "{sample}.reAlignemntTargetIntervals.{mapper}.bed",
+        ref = config["ref"]["genome"],
+        mills =  config["ref"]["mills"],
+        kgindels =  config["ref"]["kgindels"]              
     output:
-        realigned_bam = "results/{experiment}/{sample}/data/{sample}.reAligned.{mapper}.bam",
-        buildbamindex = "results/{experiment}/{sample}/data/{sample}.reAligned.{mapper}.bai", 
-        flagstat = "results/{experiment}/{sample}/data/{sample}.flagstat.realigned.{mapper}.txt",
-        ginkgo_bed = "results/{experiment}/{sample}/data/{sample}.ginkgo.{mapper}.bed"
+        realigned_bam = "{sample}.reAligned.{mapper}.bam",
+        buildbamindex = "{sample}.reAligned.{mapper}.bai", 
+        ginkgo_bed = "{sample}.ginkgo.{mapper}.bed"
     log:
-        realign = "results/{experiment}/{sample}/logs/reAlign.GATK.realignindels.{sample}.{mapper}.log",
-        buildbamindex = "results/{experiment}/{sample}/logs/reAlign.picard.buildbamindex.{sample}.{mapper}.log",
-        bamtobed = "results/{experiment}/{sample}/logs/reAlign.bam2bed.{sample}.{mapper}.log"
+        realign = "logs/reAlign.GATK.realignindels.{sample}.{mapper}.log",
+        buildbamindex = "logs/reAlign.picard.buildbamindex.{sample}.{mapper}.log",
+        bamtobed = "logs/reAlign.bam2bed.{sample}.{mapper}.log"
     shell:
-        "GenomeAnalysisTK.jar -T IndelRealigner -I {input.fixed_bam} -R {REF} -targetIntervals {input.targets} -o {output.realigned_bam} -known {MILLS} -known {KGINDELS} 1>&2 2> {log.realign} 2>&1;"
-        "picard BuildBamIndex.jar INPUT={output.realigned_bam} > {logs.buildbamindex} 2>&1;"
-        "samtools flagstat {output.realigned_bam} > {output.flagstat}"
-        "bamToBed -i {output.realigned_bam} > {output.ginkgo_bed} 2> {log.bamtoted}"
-        
+        "GenomeAnalysisTK.jar -T IndelRealigner -I {input.fixed_bam} -R {input.ref} -targetIntervals {input.targets} -o {output.realigned_bam} -known {input.mills} -known {input.kgindels} 1>&2 2> {log.realign} 2>&1;"
+        "picard BuildBamIndex.jar INPUT={output.realigned_bam} > {log.buildbamindex} 2>&1;"
+        "bamToBed -i {output.realigned_bam} > {output.ginkgo_bed} 2> {log.bamtobed}"
+
+# COMMENT: Too many commands in one rule?
+
                 
 rule freebayes:
     input:
-        "results/{experiment}/{sample}/data/{sample}.reAligned.{mapper}.bam"
+        bam = "{sample}.reAligned.{mapper}.bam",
+        ref = config["ref"]["genome"]  
     output:
-        "results/{experiment}/{sample}/data/{sample}.freebayes.{mapper}.vcf"
+        "{sample}.freebayes.{mapper}.vcf"
     log:
-        freebayes = "results/{experiment}/{sample}/logs/freebayes.{sample}.{mapper}.log"
+        freebayes = "logs/freebayes.{sample}.{mapper}.log"
     shell:
-        "freebayes -f {REF} {input} {output} 2> {log.freebayes}"
+        "freebayes -f {input.ref} {input.bam} {output} 2> {log.freebayes}"
+
+rule flagstat:
+     input: "{filename}.bam"
+     output: "{filename}.flagstat"
+     shell: "samtools flagstat {input} > {output}"
 
 
+rule sum_flagstat:
+     input:
+          mapped = lambda wildcards: [ "results/" + x+".mapped."+wildcards.mapper+".flagstat" for x in  sampleinfo[wildcards.sample]["outfmt"] ],
+          merged = "results/{experiment}/{sample}/{sample}.merged.{mapper}.flagstat",
+          realigned = "results/{experiment}/{sample}/{sample}.reAligned.{mapper}.flagstat" 
+     output:
+          "results/{experiment}/{sample}/{sample}.{mapper}.flagstat.summary"
+     shell:
+          "cat {input.mapped} {input.merged} {input.realigned} > {output}"
 
-
-
-
-
+          
+"""
+COMMENT: Do we really need this rule, gives error on the line "{ref}" what was that for?
 rule getbundle:
     ''' Soft-link the reference  and bundle files from previously downloaded directory
     indicated in config file'''
@@ -197,7 +266,4 @@ rule getbundle:
         "ln -s config[gatk_bundle]/{params.KGINDELS} {output.KGINDELS};"
 
 """
-
-
-
 

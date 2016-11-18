@@ -1,0 +1,19 @@
+# general settings
+settings:
+  mapper: ["bwa","bowtie2"]
+  threads: 1
+  seqdir: "/Users/asbj/local/misc/workflows/gimlet/j_frisen_1602_2/j_frisen_1602/sequences/"
+
+# information on folder/file structure for the samples
+sampleinfo:
+  file: "/Users/asbj/local/misc/workflows/gimlet/test1/sampleinfo.csv"
+  outfmt: "{experiment}/{sample}/{sample}{extension}"
+  mergefmt: "{experiment}/{sample}/{sample}"
+
+# genome and other reference files
+ref:
+  genome: "indexfiles/human_g1k_v37_reference.fasta"
+  mills: "indexfiles/Mills_and_1000G_gold_standard.indels.b37.vcf"
+  kgindels: "indexfiles/1000G_phase1.indels.b37.vcf"
+
+
