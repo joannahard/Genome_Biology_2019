@@ -7,7 +7,7 @@ settings:
 # information on folder/file structure for the samples
 sampleinfo:
   file: "/Users/asbj/local/misc/workflows/gimlet/test1/sampleinfo.csv"
-  outfmt: "{experiment}/{sample}/{sample}{extension}"
+  outfmt: "{sample}{extension}"
   mergefmt: "{experiment}/{sample}/{sample}"
 
 # genome and other reference files

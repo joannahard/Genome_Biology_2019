@@ -4,14 +4,13 @@ import snakemake_helper as sh
 FASTQDIR = config["settings"]["seqdir"]
 MAPPERS = config["settings"]["mapper"]
 
-# read in sampleinfo file with function in sampleinfo.py
+# read in sampleinfo file with function in snakemake_helper
 sampleinfo = sh.read_sampleinfo(config)
      
 TARGETS = [sampleinfo[x]["mergefmt"][0] for x in sampleinfo]
 print("Will try to create all target files for:")
 print(TARGETS)
 
-     
 # one rule to list all targets that needs to be created
 rule all_vcf:
     input: expand( "results/{target}.freebayes.{mapper}.vcf", target=TARGETS,mapper=MAPPERS)
@@ -20,7 +19,8 @@ rule all_vcf:
 rule all_flagstat:
     input: expand( "results/{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
 
-     
+
+          
 # need 2 rules for linking the fastq files in the results folder     
 rule link_fastq_no_ext:
      input: FASTQDIR + "{experiment}/{sample}.{read}.allTrimmed.fq.gz"
@@ -86,7 +86,28 @@ rule sam_to_bam:
 
 # COMMENT (merge): did we need to change the command for running picard or does java -jar work?
 # COMMENT (merge); Do we really want to do bam index within the merge rule, do we not have to sort as well at some step, perhaps we can index within that rule?
-               
+
+rule merge_bam:
+    input:
+        lambda wildcards: [ wildcards.dir +"/" +x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
+    output:
+        "{dir}/{sample}.merged.{mapper}.bam"
+    params:
+        java = "-Xmx5g",
+    log:
+        merge = "{dir}/logs/merge.{sample}.{mapper}.log",
+        index = "{dir}/logs/merge.buildbamindex.{sample}.{mapper}.log"
+    run: 
+      if (len(input) > 1):
+          inputstr = " ".join(["INPUT={}".format(x) for x in input])
+          shell("java {param} picard/MergeSamFiles.jar {ips} OUTPUT={out} > {log}".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
+      else:
+          if os.path.exists(output.merge):
+              os.unlink(output.merge)
+          shutil.copy(input[0], output.merge)
+      shell("java {param} /picard/BuildBamIndex.jar INPUT={out} > {log}".format(param=params.java, out=output.merge, log=log.index))     
+     
+"""                    
 rule merge_bam:
     input:
         lambda wildcards: [ "results/" + x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
@@ -107,31 +128,10 @@ rule merge_bam:
           shutil.copy(input[0], output.merge)
       shell("java {param} /picard/BuildBamIndex.jar INPUT={out} > {log}".format(param=params.java, out=output.merge, log=log.index))     
 
-
+"""
      
 """
-snakemake -n -p results/10cells/C2/C2.X.r2.allTrimmed.fq.gz
-snakemake -n -p results/10cells/D2/D2.1.r1.allTrimmed.fq.gz
-Works!
 
-snakemake -n -p results/10cells/C2/C2.X.mapped.bowtie2.bam
-snakemake -n -p results/10cells/C2/C2.X.mapped.bwa.bam
-Works!
-
-snakemake -n -p results/10cells/D2/D2.1.mapped.bowtie2.bam
-snakemake -n -p results/10cells/D2/D2.1.mapped.bwa.bam
-
-snakemake -n -p results/10cells/D2/D2.merged.bowtie2.bam
-snakemake -n -p results/10cells/D2/D2.merged.bwa.bam
-
-snakemake -n -p results/10cells/C2/C2.merged.bwa.bam
-snakemake -n -p results/10cells/C2/C2.merged.bowtie2.bam
-
-snakemake -n -p results/10cells/D2/D2.fixed.bwa.bam
-snakemake -n -p results/10cells/C2/C2.fixed.bowtie2.bam
-
-snakemake -n -p results/10cells/C2/C2.freebayes.bowtie2.vcf
-snakemake -n -p results/10cells/D2/D2.freebayes.bwa.vcf
 
 #old merge with shell only
 rule merge:
@@ -235,17 +235,19 @@ rule flagstat:
      shell: "samtools flagstat {input} > {output}"
 
 
+#COMMENT: this is a mock rule that only runs cat of all the flagstat runs
+# for now only created as a test to see if we can force snakemake to run flagstat at multiple places.. 
+     
 rule sum_flagstat:
      input:
-          mapped = lambda wildcards: [ "results/" + x+".mapped."+wildcards.mapper+".flagstat" for x in  sampleinfo[wildcards.sample]["outfmt"] ],
-          merged = "results/{experiment}/{sample}/{sample}.merged.{mapper}.flagstat",
-          realigned = "results/{experiment}/{sample}/{sample}.reAligned.{mapper}.flagstat" 
+          mapped = lambda wildcards: [ wildcards.dir + "/" + x+".mapped."+wildcards.mapper+".flagstat" for x in  sampleinfo[wildcards.sample]["outfmt"] ],
+          merged = "{dir}/{sample}.merged.{mapper}.flagstat",
+          realigned = "{dir}/{sample}.reAligned.{mapper}.flagstat" 
      output:
-          "results/{experiment}/{sample}/{sample}.{mapper}.flagstat.summary"
+          "{dir}/{sample}.{mapper}.flagstat.summary"
      shell:
           "cat {input.mapped} {input.merged} {input.realigned} > {output}"
 
-          
 """
 COMMENT: Do we really need this rule, gives error on the line "{ref}" what was that for?
 rule getbundle:
