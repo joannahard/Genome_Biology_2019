@@ -39,7 +39,7 @@ rule index_bowtie2:
     input: "{filename}"
     output: "{filename}.1.bt2"
     log: "{filename}.bowtie2-build.log"
-    shell: "bowtie2-build {input} {input} > {log}"
+    shell: "bowtie2-build --threads 16 {input} {input} > {log}"
 
 rule index_bwa:
     input: "{filename}"
@@ -72,7 +72,7 @@ rule bowtie2:
     output:
         "{sample}{exension}.mapped.bowtie2.bam",
     params:
-        bowtie2 = "--maxins 2000 -p16"
+        bowtie2 = "--maxins 2000 -p 16"
     log:
         bowtie2 = "logs/bowtie2.{sample}{exension}.bowtie2.log",
         sam2bam = "logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
