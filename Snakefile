@@ -13,17 +13,17 @@ print(TARGETS)
 
 # one rule to list all targets that needs to be created
 rule all_vcf:
-    input: expand( "results/{target}.freebayes.{mapper}.vcf", target=TARGETS,mapper=MAPPERS)
+    input: expand( config["settings"]["resdir"] + "{target}.freebayes.{mapper}.vcf", target=TARGETS,mapper=MAPPERS)
 
 # one rule to list all flagstat summary files
 rule all_flagstat:
-    input: expand( "results/{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
+    input: expand( config["settings"]["resdir"] + "{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
 
           
 # need 2 rules for linking the fastq files in the results folder     
 rule link_fastq_no_ext:
      input: FASTQDIR + "{experiment}/{sample}.{read}.allTrimmed.fq.gz"
-     output: "results/{experiment}/{sample}/{sample}.X.{read}.allTrimmed.fq.gz"
+     output: config["settings"]["resdir"] + "{experiment}/{sample}/{sample}.X.{read}.allTrimmed.fq.gz"
      shell: "ln -s {input} {output}"
          
 
@@ -31,7 +31,7 @@ rule link_fastq_w_ext:
      input:
         FASTQDIR + "{experiment}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
      output:
-        "results/{experiment}/{sample}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
+        config["settings"]["resdir"] + "{experiment}/{sample}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
      shell:
         "ln -s {input} {output}"
 
