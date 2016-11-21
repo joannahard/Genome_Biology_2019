@@ -19,7 +19,6 @@ rule all_vcf:
 rule all_flagstat:
     input: expand( "results/{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
 
-
           
 # need 2 rules for linking the fastq files in the results folder     
 rule link_fastq_no_ext:
@@ -35,13 +34,25 @@ rule link_fastq_w_ext:
         "results/{experiment}/{sample}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
      shell:
         "ln -s {input} {output}"
-     
+
+rule index_bowtie2:
+    input: "{filename}"
+    output: "{filename}.1.bt2"
+    log: "{filename}.bowtie2-build.log"
+    shell: "bowtie2-build {input} {input} > {log}"
+
+rule index_bwa:
+    input: "{filename}"
+    output: "{filename}.bwt"
+    log: "{filename}.bwa_index.log"
+    shell: "bwa index {input} > {log}"
+
 rule bwa:
-    ''' Mapping alternative 1: using bowtie '''
     input:
         r1 = "{sample}.r1.allTrimmed.fq.gz",
         r2 = "{sample}.r2.allTrimmed.fq.gz",
-        ref = config["ref"]["genome"]  
+        ref = config["ref"]["genome"],
+	index = config["ref"]["genome"] + ".bwt"
     output:
         "{sample}.mapped.bwa.sam"
     params:
@@ -53,11 +64,11 @@ rule bwa:
 
 
 rule bowtie2:
-    ''' Mapping alternative 1: using bowtie '''
     input:
         r1 = "{sample}{exension}.r1.allTrimmed.fq.gz",
         r2 = "{sample}{exension}.r2.allTrimmed.fq.gz",
-        ref = config["ref"]["genome"]  
+        ref = config["ref"]["genome"],
+        idx = config["ref"]["genome"] + ".1.bt2"
     output:
         "{sample}{exension}.mapped.bowtie2.bam",
     params:
@@ -67,10 +78,7 @@ rule bowtie2:
         sam2bam = "logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
     shell:
         "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
-        "picard SamFormatConverter.jar INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} "
-
-# COMMENT: Make rule for bowtie index
-# OBS! Then we also need to make one of the index files as the input for bowtie so that the rule will be executed...
+        "picard SamFormatConverter INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} "
 
 rule sam_to_bam:
     input:
@@ -84,7 +92,7 @@ rule sam_to_bam:
 
         
 
-# COMMENT (merge): did we need to change the command for running picard or does java -jar work?
+# COMMENT (merge): did we need to change the command for running picard or does java -jar work? - Removed java -jar from all!
 # COMMENT (merge); Do we really want to do bam index within the merge rule, do we not have to sort as well at some step, perhaps we can index within that rule?
 
 rule merge_bam:
@@ -92,43 +100,19 @@ rule merge_bam:
         lambda wildcards: [ wildcards.dir +"/" +x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
     output:
         "{dir}/{sample}.merged.{mapper}.bam"
-    params:
-        java = "-Xmx5g",
     log:
         merge = "{dir}/logs/merge.{sample}.{mapper}.log",
         index = "{dir}/logs/merge.buildbamindex.{sample}.{mapper}.log"
     run: 
       if (len(input) > 1):
           inputstr = " ".join(["INPUT={}".format(x) for x in input])
-          shell("java {param} picard/MergeSamFiles.jar {ips} OUTPUT={out} > {log}".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
+          shell("picard MergeSamFiles {ips} OUTPUT={out} > {log}".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
       else:
           if os.path.exists(output.merge):
               os.unlink(output.merge)
           shutil.copy(input[0], output.merge)
-      shell("java {param} /picard/BuildBamIndex.jar INPUT={out} > {log}".format(param=params.java, out=output.merge, log=log.index))     
+      shell("picard BuildBamIndex INPUT={out} > {log}".format(param=params.java, out=output.merge, log=log.index))     
      
-"""                    
-rule merge_bam:
-    input:
-        lambda wildcards: [ "results/" + x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
-    output:
-        "results/{experiment}/{sample}/{sample}.merged.{mapper}.bam"
-    params:
-        java = "-Xmx5g",
-    log:
-        merge = "results/{experiment}/{sample}/logs/merge.{sample}.{mapper}.log",
-        index = "results/{experiment}/{sample}/logs/merge.buildbamindex.{sample}.{mapper}.log"
-    run: 
-      if (len(input) > 1):
-          inputstr = " ".join(["INPUT={}".format(x) for x in input])
-          shell("java {param} picard/MergeSamFiles.jar {ips} OUTPUT={out} > {log}".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
-      else:
-          if os.path.exists(output.merge):
-              os.unlink(output.merge)
-          shutil.copy(input[0], output.merge)
-      shell("java {param} /picard/BuildBamIndex.jar INPUT={out} > {log}".format(param=params.java, out=output.merge, log=log.index))     
-
-"""
      
 """
 
@@ -257,9 +241,9 @@ rule getbundle:
         MILLS = config["bundle"]["mills"],
         KGINDELS = config["bundle"]["kgindels"],
       output:
-        REFERENCE = "indexfiles/human_g1k_v37_reference.fasta",
-        MILLS = "indexfiles/Mills_and_1000G_gold_standard.indels.b37.vcf",
-        KGINDELS = "indexfiles/1000G_phase1.indels.b37.vcf"
+        REFERENCE = config["ref"]["genome"],
+        MILLS = config["ref"]["mills"],
+        KGINDELS = config["ref"]["kgindels"],
       shell:
         "mkdir -p indexfiles;"
 	"ln -s {input.REFERENCE} {output.REFERENCE};"
@@ -267,6 +251,7 @@ rule getbundle:
 	"ln -s {input.KGINDELS} {output.KGINDELS};"
 
 """
+OLD version OBS!
 rule getbundle:
     ''' Soft-link the reference  and bundle files from previously downloaded directory
     indicated in config file'''
