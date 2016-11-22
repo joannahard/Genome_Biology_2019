@@ -4,6 +4,7 @@ settings:
   threads: 1
   seqdir: "/media/box2/Data/Joanna/trimmed_fastq/Tcell/"
   resdir: "Tcell/"  
+  javaopts: "-Xmx5g -Djava.io.tmpdir=`pwd`/tmp"
 
 # information on folder/file structure for the samples
 sampleinfo:

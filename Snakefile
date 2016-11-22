@@ -73,49 +73,54 @@ rule bowtie2:
         ref = config["ref"]["genome"],
         idx = config["ref"]["genome"] + ".1.bt2"
     output:
-        "{dir}/{sample}{exension}.mapped.bowtie2.bam",
+        temp("{dir}/{sample}{exension}.mapped.bowtie2.bam"),
     params:
-        bowtie2 = "--maxins 2000 -p 16"
+        bowtie2 = "--maxins 2000 -p 16",
+	java = config["settings"]["javaopts"]
     log:
         bowtie2 = "{dir}/logs/bowtie2.{sample}{exension}.bowtie2.log",
         sam2bam = "{dir}/logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
     shell:
         "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
-        "picard SamFormatConverter INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} "
+        "picard {params.java} SamFormatConverter INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} "
 
 rule sam_to_bam:
     input:
         "{dir}/{sample}.mapped.{mapper}.sam"
     output:
-        "{dir}/{sample}.mapped.{mapper}.bam"
+        temp("{dir}/{sample}.mapped.{mapper}.bam")
+    params:
+        java = config["settings"]["javaopts"]
     log:
         "{dir}/logs/picard.sam2bam.{sample}.{mapper}.log"
     shell:
-        "picard SamFormatConverter INPUT={input} OUTPUT={output} > {log} 2>&1;"
+        "picard {params.java} SamFormatConverter INPUT={input} OUTPUT={output} > {log} 2>&1;"
 
         
 
 # COMMENT (merge): did we need to change the command for running picard or does java -jar work? - Removed java -jar from all!
 # COMMENT (merge); Do we really want to do bam index within the merge rule, do we not have to sort as well at some step, perhaps we can index within that rule?
-
+# OBS! bam-file needs to be sorted before running indexing! Do either sort only (instead of copy), or merge + sort...
 
 rule merge_bam:
     input:
         lambda wildcards: [ wildcards.dir +"/" +x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
     output:
-        merge = "{dir}/{sample}.merged.{mapper}.bam"
+        merge = temp("{dir}/{sample}.merged.{mapper}.bam")
     log:
         merge = "{dir}/logs/merge.{sample}.{mapper}.log",
         index = "{dir}/logs/merge.buildbamindex.{sample}.{mapper}.log"
+    params:
+        java = config["settings"]["javaopts"]
     run: 
       if len(input) > 1:
           inputstr = " ".join(["INPUT={}".format(x) for x in input])
-          shell("picard MergeSamFiles {ips} OUTPUT={out} > {log}".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
+          shell("picard {params.java} MergeSamFiles {ips} OUTPUT={out} > {log}".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
       else:
           if os.path.exists(output.merge):
               os.unlink(output.merge)
           shutil.copy(input[0], output.merge)
-      shell("picard BuildBamIndex INPUT={out} > {log}".format(param=params.java, out=output.merge, log=log.index))     
+      shell("picard {params.java} BuildBamIndex INPUT={out} > {log}".format(out=output.merge, log=log.index))     
      
      
 """
@@ -133,6 +138,7 @@ rule merge:
         java = "-Xmx5g",
         nbamfiles = lambda wildcards: len(config["metafiles"][wildcards.sample]),
         picardinput = lambda wildcards: ["INPUT="+s for s in config["metafiles"][wildcards.sample]]
+
     log:
         merge = "results/{experiment}/{sample}/logs/merge.{sample}.{mapper}.log",
         buildbamindex = "results/{experiment}/{sample}/logs/merge.buildbamindex.{sample}.{mapper}.log"
@@ -157,15 +163,16 @@ rule filter_and_fix:
     params:
         filters = "b -q 2 -F 1028",
         sort = "SORT_ORDER=coordinate",
-        read_groups = "CREATE_INDEX=true RGID=SAMPLE RGLB=SAMPLE RGPL=ILLUMINA RGSM=SAMPLE RGCN=\"NA\" RGPU=\"NA\"" 
+        read_groups = "CREATE_INDEX=true RGID=SAMPLE RGLB=SAMPLE RGPL=ILLUMINA RGSM=SAMPLE RGCN=\"NA\" RGPU=\"NA\"",
+	java = config["settings"]["javaopts"]	
     log:
         filters = "{dir}/logs/fnf.samtools.filters.{sample}.{mapper}.log",
         sort = "{dir}/logs/fnf.picard.sortsam.{sample}.{mapper}.log",
         read_groups = "{dir}/logs/fnf.picard.addorreplacereadgroup.{sample}.{mapper}.log"
     shell:
         "samtools view {params.filters} {input} 2> {log.filters} |"
-        "picard SortSam.jar {params.sort} INPUT=/dev/stdin 2> {log.sort} |"
-        "picard addOrReplaceReadGroups.jar {params.read_groups} INPUT=/dev/stdin OUTPUT={output} 2> {log.read_groups}" 
+        "picard {params.java} SortSam {params.sort} INPUT=/dev/stdin 2> {log.sort} |"
+        "picard {params.java} AddOrReplaceReadGroups {params.read_groups} INPUT=/dev/stdin OUTPUT={output} 2> {log.read_groups}" 
         
 rule realignertargetcreator:
     input:
@@ -193,14 +200,16 @@ rule realignindels:
     output:
         realigned_bam = "{dir}/{sample}.reAligned.{mapper}.bam",
         buildbamindex = "{dir}/{sample}.reAligned.{mapper}.bai", 
-        ginkgo_bed = "{dir}/{sample}.ginkgo.{mapper}.bed"
+        ginkgo_bed = "{dir}/{sample}.ginkgo.{mapper}.bed",
+    params:
+        java = config["settings"]["javaopts"],
     log:
         realign = "{dir}/logs/reAlign.GATK.realignindels.{sample}.{mapper}.log",
         buildbamindex = "{dir}/logs/reAlign.picard.buildbamindex.{sample}.{mapper}.log",
         bamtobed = "{dir}/logs/reAlign.bam2bed.{sample}.{mapper}.log"
     shell:
         "GenomeAnalysisTK.jar -T IndelRealigner -I {input.fixed_bam} -R {input.ref} -targetIntervals {input.targets} -o {output.realigned_bam} -known {input.mills} -known {input.kgindels} 1>&2 2> {log.realign} 2>&1;"
-        "picard BuildBamIndex.jar INPUT={output.realigned_bam} > {log.buildbamindex} 2>&1;"
+        "picard {params.java} BuildBamIndex INPUT={output.realigned_bam} > {log.buildbamindex} 2>&1;"
         "bamToBed -i {output.realigned_bam} > {output.ginkgo_bed} 2> {log.bamtobed}"
 
 # COMMENT: Too many commands in one rule?
