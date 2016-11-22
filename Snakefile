@@ -82,7 +82,7 @@ rule bowtie2:
         sam2bam = "{dir}/logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
     shell:
         "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
-        "picard {params.java} SamFormatConverter INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} "
+        "picard {params.java} SamFormatConverter INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} 2>&1;"
 
 rule sam_to_bam:
     input:
@@ -101,7 +101,25 @@ rule sam_to_bam:
 # COMMENT (merge): did we need to change the command for running picard or does java -jar work? - Removed java -jar from all!
 # COMMENT (merge); Do we really want to do bam index within the merge rule, do we not have to sort as well at some step, perhaps we can index within that rule?
 # OBS! bam-file needs to be sorted before running indexing! Do either sort only (instead of copy), or merge + sort...
+rule merge_bam:
+    input:
+        lambda wildcards: [ wildcards.dir +"/" +x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
+    output:
+        merge = temp("{dir}/{sample}.merged.{mapper}.bam")
+    log:
+        merge = "{dir}/logs/merge.{sample}.{mapper}.log",
+        index = "{dir}/logs/merge.buildbamindex.{sample}.{mapper}.log"
+    params:
+        java = config["settings"]["javaopts"]
+    run:
+        inputstr = " ".join(["INPUT={}".format(x) for x in input])
+        shell("picard {param} MergeSamFiles {ips} OUTPUT={out} > {log} 2>&1".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
+        shell("picard {param} BuildBamIndex INPUT={out} > {log} 2>&1".format(param=params.java, out=output.merge, log=log.index))
 
+
+"""
+# OLD rule with copy or merge
+# OBS! bam-file needs to be sorted before running indexing! Do either sort only (instead of copy), or merge + sort...
 rule merge_bam:
     input:
         lambda wildcards: [ wildcards.dir +"/" +x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
@@ -121,37 +139,6 @@ rule merge_bam:
               os.unlink(output.merge)
           shutil.copy(input[0], output.merge)
       shell("picard {params.java} BuildBamIndex INPUT={out} > {log}".format(out=output.merge, log=log.index))     
-     
-     
-"""
-
-
-#old merge with shell only
-rule merge:
-    input:
-        #mapped_bams = lambda wildcards: config["metafiles"][wildcards.sample]
-        mapped_bams = ["results/{experiment}/{sample}/data/" + s + ".mapped.bwa.bam" for s in lambda wildcards: config["metafiles"][wildcards.sample]]
-    output:
-        merged_bam = "results/{experiment}/{sample}/data/{sample}.merged.{mapper}.bam",
-        flagstat = "results/{experiment}/{sample}/data/{sample}.flagstat.merged.{mapper}.txt"
-    params:
-        java = "-Xmx5g",
-        nbamfiles = lambda wildcards: len(config["metafiles"][wildcards.sample]),
-        picardinput = lambda wildcards: ["INPUT="+s for s in config["metafiles"][wildcards.sample]]
-
-    log:
-        merge = "results/{experiment}/{sample}/logs/merge.{sample}.{mapper}.log",
-        buildbamindex = "results/{experiment}/{sample}/logs/merge.buildbamindex.{sample}.{mapper}.log"
-    shell:
-        '''
-        if test {params.nbamfiles} -eq 1; then 
-           mv -v {input.mapped_bams} {output.merged_bam} >&2 {log.merge};
-        else
-           java {params.java} -jar picard/MergeSamFiles.jar {params.picardinput} OUTPUT={output.merged_bam} 1>&2  2> {log.merge}
-        fi'
-        java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.merged_bam} > {log.buildbamindex} 2>&1
-        samtools flagstat {output.merged_bam} > {output.flagstat}
-        '''
 """
 
 
