@@ -1,5 +1,8 @@
 configfile: "config.yaml"
+
+import shutil, os, sys
 import snakemake_helper as sh
+
 
 FASTQDIR = config["settings"]["seqdir"]
 MAPPERS = config["settings"]["mapper"]
@@ -49,44 +52,44 @@ rule index_bwa:
 
 rule bwa:
     input:
-        r1 = "{sample}.r1.allTrimmed.fq.gz",
-        r2 = "{sample}.r2.allTrimmed.fq.gz",
+        r1 = "{dir}/{sample}.r1.allTrimmed.fq.gz",
+        r2 = "{dir}/{sample}.r2.allTrimmed.fq.gz",
         ref = config["ref"]["genome"],
 	index = config["ref"]["genome"] + ".bwt"
     output:
-        "{sample}.mapped.bwa.sam"
+        temp("{dir}/{sample}.mapped.bwa.sam")
     params:
         "-M -t 16"
     log:
-        "logs/bwa.{sample}.bwa.log",
+        "{dir}/logs/bwa.{sample}.bwa.log",
     shell:
         "bwa mem {params} {input.ref} {input.r1} {input.r2} 2> {log} > {output}"
 
 
 rule bowtie2:
     input:
-        r1 = "{sample}{exension}.r1.allTrimmed.fq.gz",
-        r2 = "{sample}{exension}.r2.allTrimmed.fq.gz",
+        r1 = "{dir}/{sample}{exension}.r1.allTrimmed.fq.gz",
+        r2 = "{dir}/{sample}{exension}.r2.allTrimmed.fq.gz",
         ref = config["ref"]["genome"],
         idx = config["ref"]["genome"] + ".1.bt2"
     output:
-        "{sample}{exension}.mapped.bowtie2.bam",
+        "{dir}/{sample}{exension}.mapped.bowtie2.bam",
     params:
         bowtie2 = "--maxins 2000 -p 16"
     log:
-        bowtie2 = "logs/bowtie2.{sample}{exension}.bowtie2.log",
-        sam2bam = "logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
+        bowtie2 = "{dir}/logs/bowtie2.{sample}{exension}.bowtie2.log",
+        sam2bam = "{dir}/logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
     shell:
         "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
         "picard SamFormatConverter INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} "
 
 rule sam_to_bam:
     input:
-        "{sample}.mapped.{mapper}.sam"
+        "{dir}/{sample}.mapped.{mapper}.sam"
     output:
-        "{sample}.mapped.{mapper}.bam"
+        "{dir}/{sample}.mapped.{mapper}.bam"
     log:
-        "logs/picard.sam2bam.{sample}.{mapper}.log"
+        "{dir}/logs/picard.sam2bam.{sample}.{mapper}.log"
     shell:
         "picard SamFormatConverter INPUT={input} OUTPUT={output} > {log} 2>&1;"
 
@@ -95,16 +98,17 @@ rule sam_to_bam:
 # COMMENT (merge): did we need to change the command for running picard or does java -jar work? - Removed java -jar from all!
 # COMMENT (merge); Do we really want to do bam index within the merge rule, do we not have to sort as well at some step, perhaps we can index within that rule?
 
+
 rule merge_bam:
     input:
         lambda wildcards: [ wildcards.dir +"/" +x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
     output:
-        "{dir}/{sample}.merged.{mapper}.bam"
+        merge = "{dir}/{sample}.merged.{mapper}.bam"
     log:
         merge = "{dir}/logs/merge.{sample}.{mapper}.log",
         index = "{dir}/logs/merge.buildbamindex.{sample}.{mapper}.log"
     run: 
-      if (len(input) > 1):
+      if len(input) > 1:
           inputstr = " ".join(["INPUT={}".format(x) for x in input])
           shell("picard MergeSamFiles {ips} OUTPUT={out} > {log}".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
       else:
@@ -147,17 +151,17 @@ rule merge:
 
 rule filter_and_fix:
     input:
-        "{sample}.merged.{mapper}.bam"
+        "{dir}/{sample}.merged.{mapper}.bam"
     output:
-        "{sample}.fixed.{mapper}.bam"
+        "{dir}/{sample}.fixed.{mapper}.bam"
     params:
         filters = "b -q 2 -F 1028",
         sort = "SORT_ORDER=coordinate",
         read_groups = "CREATE_INDEX=true RGID=SAMPLE RGLB=SAMPLE RGPL=ILLUMINA RGSM=SAMPLE RGCN=\"NA\" RGPU=\"NA\"" 
     log:
-        filters = "logs/fnf.samtools.filters.{sample}.{mapper}.log",
-        sort = "logs/fnf.picard.sortsam.{sample}.{mapper}.log",
-        read_groups = "logs/fnf.picard.addorreplacereadgroup.{sample}.{mapper}.log"
+        filters = "{dir}/logs/fnf.samtools.filters.{sample}.{mapper}.log",
+        sort = "{dir}/logs/fnf.picard.sortsam.{sample}.{mapper}.log",
+        read_groups = "{dir}/logs/fnf.picard.addorreplacereadgroup.{sample}.{mapper}.log"
     shell:
         "samtools view {params.filters} {input} 2> {log.filters} |"
         "picard SortSam.jar {params.sort} INPUT=/dev/stdin 2> {log.sort} |"
@@ -165,35 +169,35 @@ rule filter_and_fix:
         
 rule realignertargetcreator:
     input:
-        bam = "{sample}.fixed.{mapper}.bam",
+        bam = "{dir}/{sample}.fixed.{mapper}.bam",
         ref = config["ref"]["genome"],
         mills =  config["ref"]["mills"],
         kgindels =  config["ref"]["kgindels"]      
     output:
-        "{sample}.reAlignemntTargetIntervals.{mapper}.bed"
+        "{dir}/{sample}.reAlignemntTargetIntervals.{mapper}.bed"
     params:
         "-nt 16"
     log:
-        target_creator = "logs/realigntargetcreator.{sample}.{mapper}.log"
+        target_creator = "{dir}/logs/realigntargetcreator.{sample}.{mapper}.log"
     shell:
         "GenomeAnalysisTK.jar -T RealignerTargetCreator {params} -R {input.ref} -I {input.bam} -known {input.mills} -known {input.kgindels} -o {output} > {log.target_creator} 2> &1;"
         
 
 rule realignindels:
     input:
-        fixed_bam = "{sample}.fixed.{mapper}.bam",
-        targets = "{sample}.reAlignemntTargetIntervals.{mapper}.bed",
+        fixed_bam = "{dir}/{sample}.fixed.{mapper}.bam",
+        targets = "{dir}/{sample}.reAlignemntTargetIntervals.{mapper}.bed",
         ref = config["ref"]["genome"],
         mills =  config["ref"]["mills"],
         kgindels =  config["ref"]["kgindels"]              
     output:
-        realigned_bam = "{sample}.reAligned.{mapper}.bam",
-        buildbamindex = "{sample}.reAligned.{mapper}.bai", 
-        ginkgo_bed = "{sample}.ginkgo.{mapper}.bed"
+        realigned_bam = "{dir}/{sample}.reAligned.{mapper}.bam",
+        buildbamindex = "{dir}/{sample}.reAligned.{mapper}.bai", 
+        ginkgo_bed = "{dir}/{sample}.ginkgo.{mapper}.bed"
     log:
-        realign = "logs/reAlign.GATK.realignindels.{sample}.{mapper}.log",
-        buildbamindex = "logs/reAlign.picard.buildbamindex.{sample}.{mapper}.log",
-        bamtobed = "logs/reAlign.bam2bed.{sample}.{mapper}.log"
+        realign = "{dir}/logs/reAlign.GATK.realignindels.{sample}.{mapper}.log",
+        buildbamindex = "{dir}/logs/reAlign.picard.buildbamindex.{sample}.{mapper}.log",
+        bamtobed = "{dir}/logs/reAlign.bam2bed.{sample}.{mapper}.log"
     shell:
         "GenomeAnalysisTK.jar -T IndelRealigner -I {input.fixed_bam} -R {input.ref} -targetIntervals {input.targets} -o {output.realigned_bam} -known {input.mills} -known {input.kgindels} 1>&2 2> {log.realign} 2>&1;"
         "picard BuildBamIndex.jar INPUT={output.realigned_bam} > {log.buildbamindex} 2>&1;"
@@ -204,12 +208,12 @@ rule realignindels:
                 
 rule freebayes:
     input:
-        bam = "{sample}.reAligned.{mapper}.bam",
+        bam = "{dir}/{sample}.reAligned.{mapper}.bam",
         ref = config["ref"]["genome"]  
     output:
-        "{sample}.freebayes.{mapper}.vcf"
+        "{dir}/{sample}.freebayes.{mapper}.vcf"
     log:
-        freebayes = "logs/freebayes.{sample}.{mapper}.log"
+        freebayes = "{dir}/logs/freebayes.{sample}.{mapper}.log"
     shell:
         "freebayes -f {input.ref} {input.bam} {output} 2> {log.freebayes}"
 
