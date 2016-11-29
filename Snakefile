@@ -181,8 +181,7 @@ rule realignertargetcreator:
     log:
         target_creator = "{dir}/logs/realigntargetcreator.{sample}.{mapper}.log"
     shell:
-        "GenomeAnalysisTK.jar -T RealignerTargetCreator {params} -R {input.ref} -I {input.bam} -known {input.mills} -known {input.kgindels} -o {output} > {log.target_creator} 2> &1;"
-        
+        "GenomeAnalysisTK -T RealignerTargetCreator {params} -R {input.ref} -I {input.bam} -known {input.mills} -known {input.kgindels} -o {output} > {log.target_creator} 2>&1;"
 
 rule realignindels:
     input:
@@ -202,7 +201,7 @@ rule realignindels:
         buildbamindex = "{dir}/logs/reAlign.picard.buildbamindex.{sample}.{mapper}.log",
         bamtobed = "{dir}/logs/reAlign.bam2bed.{sample}.{mapper}.log"
     shell:
-        "GenomeAnalysisTK.jar -T IndelRealigner -I {input.fixed_bam} -R {input.ref} -targetIntervals {input.targets} -o {output.realigned_bam} -known {input.mills} -known {input.kgindels} 1>&2 2> {log.realign} 2>&1;"
+        "GenomeAnalysisTK -T IndelRealigner -I {input.fixed_bam} -R {input.ref} -targetIntervals {input.targets} -o {output.realigned_bam} -known {input.mills} -known {input.kgindels} > {log.realign} 2>&1;"
         "picard {params.java} BuildBamIndex INPUT={output.realigned_bam} > {log.buildbamindex} 2>&1;"
         "bamToBed -i {output.realigned_bam} > {output.ginkgo_bed} 2> {log.bamtobed}"
 
@@ -252,11 +251,18 @@ rule getbundle:
         REFERENCE = config["ref"]["genome"],
         MILLS = config["ref"]["mills"],
         KGINDELS = config["ref"]["kgindels"],
+      params:
+        java = config["settings"]["javaopts"]
+      log:
+        dict = config["ref"]["genome"]+".create_dict.log",
+        fai = config["ref"]["genome"]+".create_fai.log",
       shell:
         "mkdir -p indexfiles;"
 	"ln -s {input.REFERENCE} {output.REFERENCE};"
 	"ln -s {input.MILLS} {output.MILLS};"
 	"ln -s {input.KGINDELS} {output.KGINDELS};"
+	"picard {params.java} SortSam {params.sort} INPUT=/dev/stdin OUTPUT=/dev/stdout 2> {log.dict};"
+	"samtools faidx {input.REFERENCE} 2> {log.fai};"
 
 """
 OLD version OBS!
