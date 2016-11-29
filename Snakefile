@@ -14,14 +14,21 @@ TARGETS = [sampleinfo[x]["mergefmt"][0] for x in sampleinfo]
 print("Will try to create all target files for:")
 print(TARGETS)
 
-# one rule to list all targets that needs to be created
-rule all_vcf:
-    input: expand( config["settings"]["resdir"] + "{target}.freebayes.{mapper}.vcf", target=TARGETS,mapper=MAPPERS)
+# one rule to list all targets that needs to be created, both vcfs and flagstats 
+rule all:
+    input:
+      vcfs = expand( config["settings"]["resdir"] + "{target}.freebayes.{mapper}.vcf", target=TARGETS,mapper=MAPPERS),
+      flagstats = expand( config["settings"]["resdir"] + "{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
 
-# one rule to list all flagstat summary files
-rule all_flagstat:
-    input: expand( config["settings"]["resdir"] + "{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
-
+# one rule to make all files for one sample, requires both flagstat summary and freebayes vcf
+rule onesample:
+    input:
+      flagsum = "{dir}/{sample}.{mapper}.flagstat.summary",
+      vcf = "{dir}/{sample}.freebayes.{mapper}.vcf"
+    output:
+      "{dir}/{sample}.{mapper}.chkfile"
+    shell:
+      "touch {output}"	
           
 # need 2 rules for linking the fastq files in the results folder     
 rule link_fastq_no_ext:
@@ -148,7 +155,7 @@ rule filter_and_fix:
     output:
         "{dir}/{sample}.fixed.{mapper}.bam"
     params:
-        filters = "b -q 2 -F 1028",
+        filters = "-b -q 2 -F 1028",
         sort = "SORT_ORDER=coordinate",
         read_groups = "CREATE_INDEX=true RGID=SAMPLE RGLB=SAMPLE RGPL=ILLUMINA RGSM=SAMPLE RGCN=\"NA\" RGPU=\"NA\"",
 	java = config["settings"]["javaopts"]	
@@ -158,7 +165,7 @@ rule filter_and_fix:
         read_groups = "{dir}/logs/fnf.picard.addorreplacereadgroup.{sample}.{mapper}.log"
     shell:
         "samtools view {params.filters} {input} 2> {log.filters} |"
-        "picard {params.java} SortSam {params.sort} INPUT=/dev/stdin 2> {log.sort} |"
+        "picard {params.java} SortSam {params.sort} INPUT=/dev/stdin OUTPUT=/dev/stdout 2> {log.sort} |"
         "picard {params.java} AddOrReplaceReadGroups {params.read_groups} INPUT=/dev/stdin OUTPUT={output} 2> {log.read_groups}" 
         
 rule realignertargetcreator:

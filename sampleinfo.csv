@@ -1,8 +1,8 @@
 sample,extension,experiment
 C2,,10cells
 C6,,10cells
-D2,.1,10cells
-D2,.2,10cells
+D21,,10cells
+D22,,10cells
 E7,,10cells
 E8,,10cells
 F7,,10cells
@@ -17,3 +17,6 @@ B4C6,.5,12MDAs
 B4C6,.6,12MDAs
 G6E5,.5,12MDAs
 G6E5,.6,12MDAs
+H2E2,.5,12MDAs
+H2E2,.6,12MDAs
+H2F12,,12MDAs
