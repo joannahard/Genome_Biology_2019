@@ -233,11 +233,12 @@ rule sum_flagstat:
      input:
           mapped = lambda wildcards: [ wildcards.dir + "/" + x+".mapped."+wildcards.mapper+".flagstat" for x in  sampleinfo[wildcards.sample]["outfmt"] ],
           merged = "{dir}/{sample}.merged.{mapper}.flagstat",
+	  fixed = "{dir}/{sample}.fixed.{mapper}.flagstat",
           realigned = "{dir}/{sample}.reAligned.{mapper}.flagstat" 
      output:
           "{dir}/{sample}.{mapper}.flagstat.summary"
      shell:
-          "cat {input.mapped} {input.merged} {input.realigned} > {output}"
+          "cat {input.mapped} {input.merged} {input.fixed} {input.realigned} > {output}"
 
 
 rule getbundle:
