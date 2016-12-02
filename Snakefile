@@ -45,11 +45,12 @@ rule link_fastq_w_ext:
      shell:
         "ln -s {input} {output}"
 
+# OBS! gives error if -threads 16
 rule index_bowtie2:
     input: "{filename}"
     output: "{filename}.1.bt2"
     log: "{filename}.bowtie2-build.log"
-    shell: "bowtie2-build --threads 16 {input} {input} > {log}"
+    shell: "bowtie2-build {input} {input} > {log}"
 
 rule index_bwa:
     input: "{filename}"
@@ -217,7 +218,7 @@ rule freebayes:
     log:
         freebayes = "{dir}/logs/freebayes.{sample}.{mapper}.log"
     shell:
-        "freebayes -f {input.ref} {input.bam} {output} 2> {log.freebayes}"
+        "freebayes -f {input.ref} {input.bam} -v {output} 2> {log.freebayes}"
 
 rule flagstat:
      input: "{filename}.bam"
