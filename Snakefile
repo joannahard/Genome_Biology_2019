@@ -50,7 +50,7 @@ rule index_bowtie2:
     input: "{filename}"
     output: "{filename}.1.bt2"
     log: "{filename}.bowtie2-build.log"
-    shell: "bowtie2-build {input} {input} > {log}"
+    shell: "bowtie2-build {input} {input} > {log} 2>&1;"
 
 rule index_bwa:
     input: "{filename}"
@@ -66,12 +66,13 @@ rule bwa:
 	index = config["ref"]["genome"] + ".bwt"
     output:
         temp("{dir}/{sample}.mapped.bwa.sam")
+    threads: 16	
     params:
-        "-M -t 16"
+        "-M"
     log:
         "{dir}/logs/bwa.{sample}.bwa.log",
     shell:
-        "bwa mem {params} {input.ref} {input.r1} {input.r2} 2> {log} > {output}"
+        "bwa mem {params} -t {threads} {input.ref} {input.r1} {input.r2} 2> {log} > {output}"
 
 
 rule bowtie2:
@@ -82,14 +83,15 @@ rule bowtie2:
         idx = config["ref"]["genome"] + ".1.bt2"
     output:
         temp("{dir}/{sample}{exension}.mapped.bowtie2.bam"),
+    threads: 16	
     params:
-        bowtie2 = "--maxins 2000 -p 16",
+        bowtie2 = "--maxins 2000",
 	java = config["settings"]["javaopts"]
     log:
         bowtie2 = "{dir}/logs/bowtie2.{sample}{exension}.bowtie2.log",
         sam2bam = "{dir}/logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
     shell:
-        "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
+        "bowtie2 {params.bowtie2} -p 16 -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
         "picard {params.java} SamFormatConverter INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} 2>&1;"
 
 rule sam_to_bam:
@@ -154,7 +156,7 @@ rule filter_and_fix:
     input:
         "{dir}/{sample}.merged.{mapper}.bam"
     output:
-        "{dir}/{sample}.fixed.{mapper}.bam"
+        temp("{dir}/{sample}.fixed.{mapper}.bam")
     params:
         filters = "-b -q 2 -F 1028",
         sort = "SORT_ORDER=coordinate",
@@ -176,13 +178,12 @@ rule realignertargetcreator:
         mills =  config["ref"]["mills"],
         kgindels =  config["ref"]["kgindels"]      
     output:
-        "{dir}/{sample}.reAlignemntTargetIntervals.{mapper}.bed"
-    params:
-        "-nt 16"
+        temp("{dir}/{sample}.reAlignemntTargetIntervals.{mapper}.bed")
+    threads: 16
     log:
         target_creator = "{dir}/logs/realigntargetcreator.{sample}.{mapper}.log"
     shell:
-        "GenomeAnalysisTK -T RealignerTargetCreator {params} -R {input.ref} -I {input.bam} -known {input.mills} -known {input.kgindels} -o {output} > {log.target_creator} 2>&1;"
+        "GenomeAnalysisTK -T RealignerTargetCreator -nt {threads} -R {input.ref} -I {input.bam} -known {input.mills} -known {input.kgindels} -o {output} > {log.target_creator} 2>&1;"
 
 rule realignindels:
     input:
