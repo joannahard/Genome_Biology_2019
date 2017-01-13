@@ -26,7 +26,15 @@ Once, you have miniconda installed, running the script CONDAME.sh:
 bash CONDAME.sh
 
 sets up the conda environment 'j_frisen_1602' with the required
-programs. You should activate the environment before running snakemake
+programs.
+OBS! GATK cannot be installed completely from bioconda since it requires
+a license. Therefore you have to download GATK (v3.6 or which ever is
+specified in requirements.txt) from the website. After activating the
+conda environment you need to run gatk-register e.g.:
+
+gatk-register /media/box2/Experiments/Joanna/bin/downloads/GenomeAnalysisTK-3.6.tar.bz2
+
+You should activate the environment before running snakemake
 
 source activate j_frisen_1602
 
