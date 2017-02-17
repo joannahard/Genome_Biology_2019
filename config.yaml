@@ -22,3 +22,4 @@ bundle:
   genome: "/media/box2/reference_assemblies/bundle/2.8/b37/from_pall/human_g1k_v37_decoy.fasta"
   mills: "/media/box2/reference_assemblies/bundle/2.8/b37/from_pall/Mills_and_1000G_gold_standard.indels.b37.vcf"
   kgindels: "/media/box2/reference_assemblies/bundle/2.8/b37/from_pall/1000G_phase1.indels.b37.vcf"
+

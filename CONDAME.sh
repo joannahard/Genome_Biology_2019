@@ -2,13 +2,12 @@
 
 
 exists=`conda info --envs|grep -v "#"|awk '{if($1=="j_frisen_1602")print 0}'`
-echo $exists
 if test "$exists" = "0"; then
     echo "Updating conda environemnt j_frisen_1602";
-    conda install -n j_frisen_1602 -c bioconda --file requirements.txt;
+    conda install -n j_frisen_1602 -c bioconda -c pkgw --file requirements.txt;
 else
     echo "Now creating conda environment j_frisen_1602";
-    conda create -n j_frisen_1602 -c bioconda --file requirements.txt;
+    conda create -n j_frisen_1602 -c bioconda -c pkgw --file requirements.txt;
 fi
 echo "To start conda environment type:"
 echo "source activate j_frisen_1602"

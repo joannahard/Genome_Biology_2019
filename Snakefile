@@ -1,8 +1,8 @@
 configfile: "config.yaml"
 
-import shutil, os, sys
+import shutil, os, sys, re
 import snakemake_helper as sh
-
+from snakemake.utils import R
 
 FASTQDIR = config["settings"]["seqdir"]
 MAPPERS = config["settings"]["mapper"]
@@ -60,15 +60,10 @@ rule index_bwa:
 
 rule bwa:
     input:
-<<<<<<< HEAD
-        r1 = lambda wildcards: getMapperInput(config, wildcards, "r1"),
-        r2 = lambda wildcards: getMapperInput(config, wildcards, "r2"),
-=======
         r1 = "{dir}/{sample}.r1.allTrimmed.fq.gz",
         r2 = "{dir}/{sample}.r2.allTrimmed.fq.gz",
         ref = config["ref"]["genome"],
 	index = config["ref"]["genome"] + ".bwt"
->>>>>>> 420be66d25fc9b12876ff24f302676df36d72e18
     output:
         temp("{dir}/{sample}.mapped.bwa.sam")
     threads: 16	
@@ -79,23 +74,13 @@ rule bwa:
     shell:
         "bwa mem {params} -t {threads} {input.ref} {input.r1} {input.r2} 2> {log} > {output}"
 
-<<<<<<< HEAD
-#runs for bwa. not bowtie because it is missing a bowtie2 index
-# make tmp rules
-=======
->>>>>>> 420be66d25fc9b12876ff24f302676df36d72e18
 
 rule bowtie2:
     input:
-<<<<<<< HEAD
-        r1 = lambda wildcards: getMapperInput(config, wildcards, "r1"),
-        r2 = lambda wildcards: getMapperInput(config, wildcards, "r2"),
-=======
         r1 = "{dir}/{sample}{exension}.r1.allTrimmed.fq.gz",
         r2 = "{dir}/{sample}{exension}.r2.allTrimmed.fq.gz",
         ref = config["ref"]["genome"],
         idx = config["ref"]["genome"] + ".1.bt2"
->>>>>>> 420be66d25fc9b12876ff24f302676df36d72e18
     output:
         temp("{dir}/{sample}{exension}.mapped.bowtie2.bam"),
     threads: 16	
@@ -106,18 +91,8 @@ rule bowtie2:
         bowtie2 = "{dir}/logs/bowtie2.{sample}{exension}.bowtie2.log",
         sam2bam = "{dir}/logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
     shell:
-<<<<<<< HEAD
-        "bowtie2 {params.bowtie2} -1 {input.r1} -2 {input.r2} -x {REF} 2> {log.bowtie2} | "
-        "picard SamFormatConverter.jar INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} "
-
-# Make rule for bowtie index
-
-
-
-=======
         "bowtie2 {params.bowtie2} -p 16 -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
-        "picard {params.java} SamFormatConverter INPUT=/dev/stdin OUPUT={output} > {log.sam2bam} 2>&1;"
->>>>>>> 420be66d25fc9b12876ff24f302676df36d72e18
+        "picard {params.java} SamFormatConverter INPUT=/dev/stdin OUTPUT={output} > {log.sam2bam} 2>&1;"
 
 rule sam_to_bam:
     input:
@@ -131,10 +106,6 @@ rule sam_to_bam:
     shell:
         "picard {params.java} SamFormatConverter INPUT={input} OUTPUT={output} > {log} 2>&1;"
 
-<<<<<<< HEAD
-
-=======
-        
 
 # COMMENT (merge): did we need to change the command for running picard or does java -jar work? - Removed java -jar from all!
 # COMMENT (merge); Do we really want to do bam index within the merge rule, do we not have to sort as well at some step, perhaps we can index within that rule?
@@ -154,40 +125,12 @@ rule merge_bam:
         shell("picard {param} MergeSamFiles {ips} OUTPUT={out} > {log} 2>&1".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
         shell("picard {param} BuildBamIndex INPUT={out} > {log} 2>&1".format(param=params.java, out=output.merge, log=log.index))
 
->>>>>>> 420be66d25fc9b12876ff24f302676df36d72e18
 
 """
 # OLD rule with copy or merge
 # OBS! bam-file needs to be sorted before running indexing! Do either sort only (instead of copy), or merge + sort...
 rule merge_bam:
     input:
-<<<<<<< HEAD
-        #mapped_bams = lambda wildcards: config["metafiles"][wildcards.sample]
-#        mapped_bams = ["results/{experiment}/{sample}/data/" + s + ".mapped.bwa.bam" for s in lambda wildcards: config["metafiles"][wildcards.sample]]
-       mapped_bams = lambda wildcards: getMergeInput(config, wildcards)
-    output:
-        merged_bam = "results/{experiment}/{sample}/data/{sample}.merged.{mapper}.bam",
-        flagstat = "results/{experiment}/{sample}/data/{sample}.flagstat.merged.{mapper}.txt"
-    params:
-        java = "-Xmx5g",
-        nbamfiles = lambda wildcards: len(config["metafiles"][wildcards.sample]),
-#        picardinput = lambda wildcards: ["INPUT="+s for s in config["metafiles"][wildcards.sample]]
-    log:
-        merge = "results/{experiment}/{sample}/logs/merge.{sample}.{mapper}.log",
-        buildbamindex = "results/{experiment}/{sample}/logs/merge.buildbamindex.{sample}.{mapper}.log"
-    shell:
-        '''
-        if test {params.nbamfiles} -eq 1; then 
-           cp {input.mapped_bams} {output.merged_bam} >&2 {log.merge};
-        else
-           java {params.java} -jar picard/MergeSamFiles.jar {params.picardinput} OUTPUT={output.merged_bam} 1>&2  2> {log.merge}
-        fi
-        java {params.java} -jar /picard/BuildBamIndex.jar INPUT={output.merged_bam} > {log.buildbamindex} 2>&1
-        samtools flagstat {output.merged_bam} > {output.flagstat}
-        '''
-
-"""
-=======
         lambda wildcards: [ wildcards.dir +"/" +x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
     output:
         merge = temp("{dir}/{sample}.merged.{mapper}.bam")
@@ -207,7 +150,6 @@ rule merge_bam:
       shell("picard {params.java} BuildBamIndex INPUT={out} > {log}".format(out=output.merge, log=log.index))     
 """
 
->>>>>>> 420be66d25fc9b12876ff24f302676df36d72e18
 
 rule filter_and_fix:
     input:
@@ -322,7 +264,7 @@ rule getbundle:
 	"ln -s {input.KGINDELS} {output.KGINDELS};"
 	"picard {params.java} SortSam {params.sort} INPUT=/dev/stdin OUTPUT=/dev/stdout 2> {log.dict};"
 	"samtools faidx {input.REFERENCE} 2> {log.fai};"
-
+        
 """
 OLD version OBS!
 rule getbundle:
@@ -344,19 +286,7 @@ rule getbundle:
         "ln -s {params.KGINDELS} {output.KGINDELS};"
 
 
-<<<<<<< HEAD
-#rule merge:
-#    input:
-#        #mapped_bams = ["results/{experiment}/{sample}/data/" + s + ".mapped.bwa.bam" for s in ["B4C6#.5","B4C6.6"]]
-#        #mapped_bams = ["results/{experiment}/{sample}/data/" + s + ".mapped.bwa.bam" for s in lambda# wildcards: config["metafiles"][wildcards.sample]]
-##        mapped_bams = lambda wildcards: ["results/{wildcards.experiment}/{wildcards.sample}/data/" +# s + ".mapped.bwa.bam" for s in config["metafiles"][wildcards.sample]]
-#    output:
-#        test = "results/{experiment}/{sample}/data/{sample}.{mergetest"
-#    params: 
-#        names = lambda wildcards: ["INPUT="+s for s in config["metafiles"][wildcards.sample]]
-#    shell:        
-#        "echo {names} > test"
-#"B4C6": ["results/12MDAs/B4C6/data/B4C6.5.mapped.bwa.bam", "results/12MDAs/B4C6/data/B4C6.6.mapped.bwa.bam"],
-=======
+
 """
->>>>>>> 420be66d25fc9b12876ff24f302676df36d72e18
+        
+
