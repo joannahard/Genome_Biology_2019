@@ -288,5 +288,3 @@ rule getbundle:
 
 
 """
-        
-
