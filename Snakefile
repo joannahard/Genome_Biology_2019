@@ -23,7 +23,7 @@ rule all:
 # one rule to make all files for one sample, requires both flagstat summary and freebayes vcf
 rule onesample:
     input:
-      flagsum = "{dir}/{sample}.{mapper}.flagstat.summary",
+      flagsum = "{dir}/{sample}.{mapper}.flagstabt.summary",
       vcf = "{dir}/{sample}.freebayes.{mapper}.vcf"
     output:
       "{dir}/{sample}.{mapper}.chkfile"

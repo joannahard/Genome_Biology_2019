@@ -1,9 +1,9 @@
 # general settings
 settings:
-  mapper: ["bwa","bowtie2"]
+  mapper: ["bwa"]
   threads: 1
   seqdir: "/media/box2/Data/Joanna/trimmed_fastq/Tcell/"
-  resdir: "Tcell/"  
+  resdir: "LCM/"  
   javaopts: "-Xmx5g -Djava.io.tmpdir=`pwd`/tmp"
 
 # information on folder/file structure for the samples

@@ -1,13 +1,24 @@
 #!/bin/bash
 
+conda config --add channels pkgw
+conda config --add channels bcbio
+conda config --add channels r
+conda config --add channels conda-forge
+conda config --add channels bioconda
+conda config --add channels defaults
+
+USROPT=""
+if [[ -n $1 ]]; then
+    USROPT=$1
+fi
 
 exists=`conda info --envs|grep -v "#"|awk '{if($1=="j_frisen_1602")print 0}'`
 if test "$exists" = "0"; then
-    echo "Updating conda environemnt j_frisen_1602";
-    conda install -n j_frisen_1602 -c bioconda -c pkgw --file requirements.txt;
+    echo "Updating conda environment j_frisen_1602";
+    conda install $USROPT -n j_frisen_1602 --file requirements.txt;
 else
     echo "Now creating conda environment j_frisen_1602";
-    conda create -n j_frisen_1602 -c bioconda -c pkgw --file requirements.txt;
+    conda create $USROPT -n j_frisen_1602  --file requirements.txt;
 fi
 echo "To start conda environment type:"
 echo "source activate j_frisen_1602"
