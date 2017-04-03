@@ -9,7 +9,7 @@ MAPPERS = config["settings"]["mapper"]
 
 # read in sampleinfo file with function in snakemake_helper
 sampleinfo = sh.read_sampleinfo(config)
-     
+
 TARGETS = [sampleinfo[x]["mergefmt"][0] for x in sampleinfo]
 print("Will try to create all target files for:")
 print(TARGETS)
@@ -17,32 +17,32 @@ print(TARGETS)
 # one rule to list all targets that needs to be created, both vcfs and flagstats 
 rule all:
     input:
-      vcfs = expand( config["settings"]["resdir"] + "{target}.freebayes.{mapper}.vcf", target=TARGETS,mapper=MAPPERS),
-      flagstats = expand( config["settings"]["resdir"] + "{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
-
+        vcfs = expand( config["settings"]["resdir"] + "{target}.freebayes.{mapper}.vcf", target=TARGETS,mapper=MAPPERS),
+        flagstats = expand( config["settings"]["resdir"] + "{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
+        
 # one rule to make all files for one sample, requires both flagstat summary and freebayes vcf
 rule onesample:
     input:
-      flagsum = "{dir}/{sample}.{mapper}.flagstabt.summary",
-      vcf = "{dir}/{sample}.freebayes.{mapper}.vcf"
+        flagsum = "{dir}/{sample}.{mapper}.flagstabt.summary",
+        vcf = "{dir}/{sample}.freebayes.{mapper}.vcf"
     output:
-      "{dir}/{sample}.{mapper}.chkfile"
+        "{dir}/{sample}.{mapper}.chkfile"
     shell:
-      "touch {output}"	
-          
+        "touch {output}"	
+        
 # need 2 rules for linking the fastq files in the results folder     
 rule link_fastq_no_ext:
-     input: FASTQDIR + "{experiment}/{sample}.{read}.allTrimmed.fq.gz"
-     output: config["settings"]["resdir"] + "{experiment}/{sample}/{sample}.X.{read}.allTrimmed.fq.gz"
-     shell: "ln -s {input} {output}"
+    input: FASTQDIR + "{experiment}/{sample}.{read}.allTrimmed.fq.gz"
+    output: config["settings"]["resdir"] + "{experiment}/{sample}/{sample}.X.{read}.allTrimmed.fq.gz"
+    shell: "ln -s {input} {output}"
          
 
 rule link_fastq_w_ext:
-     input:
+    input:
         FASTQDIR + "{experiment}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
-     output:
+    output:
         config["settings"]["resdir"] + "{experiment}/{sample}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
-     shell:
+    shell:
         "ln -s {input} {output}"
 
 # OBS! gives error if -threads 16
@@ -105,7 +105,7 @@ rule sam_to_bam:
         "{dir}/logs/picard.sam2bam.{sample}.{mapper}.log"
     shell:
         "picard {params.java} SamFormatConverter INPUT={input} OUTPUT={output} > {log} 2>&1;"
-
+        
 
 # COMMENT (merge): did we need to change the command for running picard or does java -jar work? - Removed java -jar from all!
 # COMMENT (merge); Do we really want to do bam index within the merge rule, do we not have to sort as well at some step, perhaps we can index within that rule?
@@ -124,7 +124,7 @@ rule merge_bam:
         inputstr = " ".join(["INPUT={}".format(x) for x in input])
         shell("picard {param} MergeSamFiles {ips} OUTPUT={out} > {log} 2>&1".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
         shell("picard {param} BuildBamIndex INPUT={out} > {log} 2>&1".format(param=params.java, out=output.merge, log=log.index))
-
+        
 
 """
 # OLD rule with copy or merge
@@ -183,7 +183,7 @@ rule realignertargetcreator:
         target_creator = "{dir}/logs/realigntargetcreator.{sample}.{mapper}.log"
     shell:
         "GenomeAnalysisTK -T RealignerTargetCreator -nt {threads} -R {input.ref} -I {input.bam} -known {input.mills} -known {input.kgindels} -o {output} > {log.target_creator} 2>&1;"
-
+        
 rule realignindels:
     input:
         fixed_bam = "{dir}/{sample}.fixed.{mapper}.bam",
@@ -202,10 +202,10 @@ rule realignindels:
         buildbamindex = "{dir}/logs/reAlign.picard.buildbamindex.{sample}.{mapper}.log",
         bamtobed = "{dir}/logs/reAlign.bam2bed.{sample}.{mapper}.log"
     shell:
-        "GenomeAnalysisTK -T IndelRealigner -I {input.fixed_bam} -R {input.ref} -targetIntervals {input.targets} -o {output.realigned_bam} -known {input.mills} -known {input.kgindels} > {log.realign} 2>&1;"
+        "GenomeAnalysisTK {params.java} -T IndelRealigner -I {input.fixed_bam} -R {input.ref} -targetIntervals {input.targets} -o {output.realigned_bam} -known {input.mills} -known {input.kgindels} > {log.realign} 2>&1;"
         "picard {params.java} BuildBamIndex INPUT={output.realigned_bam} > {log.buildbamindex} 2>&1;"
         "bamToBed -i {output.realigned_bam} > {output.ginkgo_bed} 2> {log.bamtobed}"
-
+        
 # COMMENT: Too many commands in one rule?
 
                 
@@ -219,45 +219,45 @@ rule freebayes:
         freebayes = "{dir}/logs/freebayes.{sample}.{mapper}.log"
     shell:
         "freebayes -f {input.ref} {input.bam} -v {output} 2> {log.freebayes}"
-
+        
 rule flagstat:
-     input: "{filename}.bam"
-     output: "{filename}.flagstat"
-     shell: "samtools flagstat {input} > {output}"
-
+    input: "{filename}.bam"
+    output: "{filename}.flagstat"
+    shell: "samtools flagstat {input} > {output}"
+           
 
 #COMMENT: this is a mock rule that only runs cat of all the flagstat runs
 # for now only created as a test to see if we can force snakemake to run flagstat at multiple places.. 
      
 rule sum_flagstat:
-     input:
-          mapped = lambda wildcards: [ wildcards.dir + "/" + x+".mapped."+wildcards.mapper+".flagstat" for x in  sampleinfo[wildcards.sample]["outfmt"] ],
-          merged = "{dir}/{sample}.merged.{mapper}.flagstat",
-	  fixed = "{dir}/{sample}.fixed.{mapper}.flagstat",
-          realigned = "{dir}/{sample}.reAligned.{mapper}.flagstat" 
-     output:
-          "{dir}/{sample}.{mapper}.flagstat.summary"
-     shell:
-          "cat {input.mapped} {input.merged} {input.fixed} {input.realigned} > {output}"
-
+    input:
+        mapped = lambda wildcards: [ wildcards.dir + "/" + x+".mapped."+wildcards.mapper+".flagstat" for x in  sampleinfo[wildcards.sample]["outfmt"] ],
+        merged = "{dir}/{sample}.merged.{mapper}.flagstat",
+	fixed = "{dir}/{sample}.fixed.{mapper}.flagstat",
+        realigned = "{dir}/{sample}.reAligned.{mapper}.flagstat" 
+    output:
+        "{dir}/{sample}.{mapper}.flagstat.summary"
+    shell:
+        "cat {input.mapped} {input.merged} {input.fixed} {input.realigned} > {output}"
+        
 
 rule getbundle:
     ''' Soft-link the reference  and bundle files from previusly downloaded directory
         indicated in config file'''
-      input:
+    input:
         REFERENCE = config["bundle"]["genome"],
         MILLS = config["bundle"]["mills"],
         KGINDELS = config["bundle"]["kgindels"],
-      output:
+    output:
         REFERENCE = config["ref"]["genome"],
         MILLS = config["ref"]["mills"],
         KGINDELS = config["ref"]["kgindels"],
-      params:
+    params:
         java = config["settings"]["javaopts"]
-      log:
+    log:
         dict = config["ref"]["genome"]+".create_dict.log",
         fai = config["ref"]["genome"]+".create_fai.log",
-      shell:
+    shell:
         "mkdir -p indexfiles;"
 	"ln -s {input.REFERENCE} {output.REFERENCE};"
 	"ln -s {input.MILLS} {output.MILLS};"

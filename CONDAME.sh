@@ -20,6 +20,7 @@ else
     echo "Now creating conda environment j_frisen_1602";
     conda create $USROPT -n j_frisen_1602  --file requirements.txt;
 fi
+gatk-register /media/box2/Experiments/Joanna/bin/downloads/GenomeAnalysisTK-3.6.tar.bz2
 echo "To start conda environment type:"
 echo "source activate j_frisen_1602"
 echo "To stop conda environment type:"
