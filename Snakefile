@@ -18,13 +18,16 @@ print(TARGETS)
 rule all:
     input:
         vcfs = expand( config["settings"]["resdir"] + "{target}.freebayes.{mapper}.vcf", target=TARGETS,mapper=MAPPERS),
-        flagstats = expand( config["settings"]["resdir"] + "{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS)
-        
+        flagstats = expand( config["settings"]["resdir"] + "{target}.{mapper}.flagstat.summary", target=TARGETS,mapper=MAPPERS),
+	qualimaps = expand( config["settings"]["resdir"] + "{target}.reAligned.{mapper}.qualimap/qualimapReport.html", target=TARGETS,mapper=MAPPERS),
+	multiqc = config["settings"]["resdir"] + "multiqc_bwa/multiqc_report.html"
+
 # one rule to make all files for one sample, requires both flagstat summary and freebayes vcf
 rule onesample:
     input:
-        flagsum = "{dir}/{sample}.{mapper}.flagstabt.summary",
-        vcf = "{dir}/{sample}.freebayes.{mapper}.vcf"
+        flagsum = "{dir}/{sample}.{mapper}.flagstat.summary",
+        vcf = "{dir}/{sample}.freebayes.{mapper}.vcf",
+	qualimap = "{dir}/{sample}.reAligned.{mapper}.qualimap/qualimapReport.html"
     output:
         "{dir}/{sample}.{mapper}.chkfile"
     shell:
@@ -225,6 +228,38 @@ rule flagstat:
     output: "{filename}.flagstat"
     shell: "samtools flagstat {input} > {output}"
            
+rule qualimap:
+    input: "{filename}.bam"
+    output:
+      report = "{filename}.qualimap/qualimapReport.html",
+      gr = "{filename}.qualimap/genome_results.txt",
+      ish = "{filename}.qualimap/raw_data_qualimapReport/insert_size_histogram.txt",
+      ch = "{filename}.qualimap/raw_data_qualimapReport/coverage_histogram.txt",      
+      gc = "{filename}.qualimap/raw_data_qualimapReport/mapped_reads_gc-content_distribution.txt"
+    log: "{filename}.qualimap/qualimap.log"
+    params: "-sd -sdmode 0 --java-mem-size=10G -c -nw 400 -gd hg19"
+    threads: 2	
+    shell: "qualimap bamqc -nt {threads} {params} -bam {input} -outdir $(dirname {output.report}) > {log} 2>&1;"
+
+# since names are mixed up with bwa/bowtie before after the target files, make two rules for the different mappes
+rule multiqc_bwa:
+     input: expand( config["settings"]["resdir"] + "{target}{extensions}", target=TARGETS,extensions=config["multiqc"]["bwa_targets"])
+     output: config["settings"]["resdir"] + "multiqc_bwa/multiqc_report.html"
+     log: config["settings"]["resdir"] + "multiqc_bwa/multiqc.log"
+     params:
+        tempfile = config["settings"]["resdir"] + "/multiqc_bwa/multiqc_files.tmp",
+	outdir = config["settings"]["resdir"] + "/multiqc_bwa/"
+     threads: 1
+     run:
+       if not os.path.exists(params.outdir):
+       	  os.mkdir(params.outdir)
+ 	  os.chmod(params.outdir,0o774)
+       with open(params.tempfile,'w') as fh:
+       	  for file in input:
+	      	   fh.write(file)
+     	      	   fh.write("\n")
+       shell('multiqc -f -o {params.outdir} -l {params.tempfile} 2> {log} 1>&2')
+
 
 #COMMENT: this is a mock rule that only runs cat of all the flagstat runs
 # for now only created as a test to see if we can force snakemake to run flagstat at multiple places.. 
