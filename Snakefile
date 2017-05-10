@@ -162,7 +162,7 @@ rule filter_and_fix:
     params:
         filters = "-b -q 2 -F 1028",
         sort = "SORT_ORDER=coordinate",
-        read_groups = "CREATE_INDEX=true RGID=SAMPLE RGLB=SAMPLE RGPL=ILLUMINA RGSM=SAMPLE RGCN=\"NA\" RGPU=\"NA\"",
+        read_groups = "CREATE_INDEX=true RGID={sample} RGLB={sample} RGPL=ILLUMINA RGSM={sample} RGCN=\"NA\" RGPU=\"NA\"",
 	java = config["settings"]["javaopts"]	
     log:
         filters = "{dir}/logs/fnf.samtools.filters.{sample}.{mapper}.log",
@@ -237,8 +237,8 @@ rule qualimap:
       ch = "{filename}.qualimap/raw_data_qualimapReport/coverage_histogram.txt",      
       gc = "{filename}.qualimap/raw_data_qualimapReport/mapped_reads_gc-content_distribution.txt"
     log: "{filename}.qualimap/qualimap.log"
-    params: "-sd -sdmode 0 --java-mem-size=10G -c -nw 400 -gd hg19"
-    threads: 2	
+    params: "-sd -sdmode 0 --java-mem-size=20G -c -nw 400 -gd hg19"
+    threads: 10
     shell: "qualimap bamqc -nt {threads} {params} -bam {input} -outdir $(dirname {output.report}) > {log} 2>&1;"
 
 # since names are mixed up with bwa/bowtie before after the target files, make two rules for the different mappes
