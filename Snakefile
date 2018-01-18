@@ -22,33 +22,24 @@ rule all:
 	qualimaps = expand( config["settings"]["resdir"] + "{target}.reAligned.{mapper}.qualimap/qualimapReport.html", target=TARGETS,mapper=MAPPERS),
 	multiqc = config["settings"]["resdir"] + "multiqc_bwa/multiqc_report.html"
 
-# one rule to make all files for one sample, requires both flagstat summary and freebayes vcf
-rule onesample:
-    input:
-        flagsum = "{dir}/{sample}.{mapper}.flagstat.summary",
-        vcf = "{dir}/{sample}.freebayes.{mapper}.vcf",
-	qualimap = "{dir}/{sample}.reAligned.{mapper}.qualimap/qualimapReport.html"
-    output:
-        "{dir}/{sample}.{mapper}.chkfile"
-    shell:
-        "touch {output}"	
+	
         
 # need 2 rules for linking the fastq files in the results folder     
 rule link_fastq_no_ext:
-    input: FASTQDIR + "{experiment}/{sample}.{read}.allTrimmed.fq.gz"
-    output: config["settings"]["resdir"] + "{experiment}/{sample}/{sample}.X.{read}.allTrimmed.fq.gz"
+    input: FASTQDIR + "{experiment}/{sample}.{read}.trimmed.fq.gz"
+    output: config["settings"]["resdir"] + "{experiment}/{sample}/{sample}.X.{read}.trimmed.fq.gz"
     shell: "ln -s {input} {output}"
          
 
 rule link_fastq_w_ext:
     input:
-        FASTQDIR + "{experiment}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
+        FASTQDIR + "{experiment}/{sample}.{extension}.{read}.trimmed.fq.gz"
     output:
-        config["settings"]["resdir"] + "{experiment}/{sample}/{sample}.{extension}.{read}.allTrimmed.fq.gz"
+        config["settings"]["resdir"] + "{experiment}/{sample}/{sample}.{extension}.{read}.trimmed.fq.gz"
     shell:
         "ln -s {input} {output}"
 
-# OBS! gives error if -threads 16
+
 rule index_bowtie2:
     input: "{filename}"
     output: "{filename}.1.bt2"
@@ -63,8 +54,8 @@ rule index_bwa:
 
 rule bwa:
     input:
-        r1 = "{dir}/{sample}.r1.allTrimmed.fq.gz",
-        r2 = "{dir}/{sample}.r2.allTrimmed.fq.gz",
+        r1 = "{dir}/{sample}.r1.trimmed.fq.gz",
+        r2 = "{dir}/{sample}.r2.trimmed.fq.gz",
         ref = config["ref"]["genome"],
 	index = config["ref"]["genome"] + ".bwt"
     output:
@@ -94,7 +85,7 @@ rule bowtie2:
         bowtie2 = "{dir}/logs/bowtie2.{sample}{exension}.bowtie2.log",
         sam2bam = "{dir}/logs/picard.sam2bam.{sample}{exension}.bowtie2.log"
     shell:
-        "bowtie2 {params.bowtie2} -p 16 -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
+        "bowtie2 {params.bowtie2} -p {threads} -1 {input.r1} -2 {input.r2} -x {input.ref} 2> {log.bowtie2} | "
         "picard {params.java} SamFormatConverter INPUT=/dev/stdin OUTPUT={output} > {log.sam2bam} 2>&1;"
 
 rule sam_to_bam:
@@ -110,9 +101,7 @@ rule sam_to_bam:
         "picard {params.java} SamFormatConverter INPUT={input} OUTPUT={output} > {log} 2>&1;"
         
 
-# COMMENT (merge): did we need to change the command for running picard or does java -jar work? - Removed java -jar from all!
-# COMMENT (merge); Do we really want to do bam index within the merge rule, do we not have to sort as well at some step, perhaps we can index within that rule?
-# OBS! bam-file needs to be sorted before running indexing! Do either sort only (instead of copy), or merge + sort...
+
 rule merge_bam:
     input:
         lambda wildcards: [ wildcards.dir +"/" +x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
@@ -128,31 +117,6 @@ rule merge_bam:
         shell("picard {param} MergeSamFiles {ips} OUTPUT={out} > {log} 2>&1".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
         shell("picard {param} BuildBamIndex INPUT={out} > {log} 2>&1".format(param=params.java, out=output.merge, log=log.index))
         
-
-"""
-# OLD rule with copy or merge
-# OBS! bam-file needs to be sorted before running indexing! Do either sort only (instead of copy), or merge + sort...
-rule merge_bam:
-    input:
-        lambda wildcards: [ wildcards.dir +"/" +x+".mapped."+wildcards.mapper+".bam" for x in  sampleinfo[wildcards.sample]["outfmt"] ]
-    output:
-        merge = temp("{dir}/{sample}.merged.{mapper}.bam")
-    log:
-        merge = "{dir}/logs/merge.{sample}.{mapper}.log",
-        index = "{dir}/logs/merge.buildbamindex.{sample}.{mapper}.log"
-    params:
-        java = config["settings"]["javaopts"]
-    run: 
-      if len(input) > 1:
-          inputstr = " ".join(["INPUT={}".format(x) for x in input])
-          shell("picard {params.java} MergeSamFiles {ips} OUTPUT={out} > {log}".format(param=params.java, ips=inputstr, out=output.merge, log=log.merge))
-      else:
-          if os.path.exists(output.merge):
-              os.unlink(output.merge)
-          shutil.copy(input[0], output.merge)
-      shell("picard {params.java} BuildBamIndex INPUT={out} > {log}".format(out=output.merge, log=log.index))     
-"""
-
 
 rule filter_and_fix:
     input:
@@ -209,7 +173,7 @@ rule realignindels:
         "picard {params.java} BuildBamIndex INPUT={output.realigned_bam} > {log.buildbamindex} 2>&1;"
         "bamToBed -i {output.realigned_bam} > {output.ginkgo_bed} 2> {log.bamtobed}"
         
-# COMMENT: Too many commands in one rule?
+
 
                 
 rule freebayes:
@@ -241,7 +205,7 @@ rule qualimap:
     threads: 10
     shell: "qualimap bamqc -nt {threads} {params} -bam {input} -outdir $(dirname {output.report}) > {log} 2>&1;"
 
-# since names are mixed up with bwa/bowtie before after the target files, make two rules for the different mappes
+# since names are mixed up with bwa/bowtie before after the target files, make two rules for the different mappes. Obs! multiqc_bowtie is not implemented!
 rule multiqc_bwa:
      input: expand( config["settings"]["resdir"] + "{target}{extensions}", target=TARGETS,extensions=config["multiqc"]["bwa_targets"])
      output: config["settings"]["resdir"] + "multiqc_bwa/multiqc_report.html"
@@ -261,8 +225,6 @@ rule multiqc_bwa:
        shell('multiqc -f -o {params.outdir} -l {params.tempfile} 2> {log} 1>&2')
 
 
-#COMMENT: this is a mock rule that only runs cat of all the flagstat runs
-# for now only created as a test to see if we can force snakemake to run flagstat at multiple places.. 
      
 rule sum_flagstat:
     input:
@@ -276,6 +238,7 @@ rule sum_flagstat:
         "cat {input.mapped} {input.merged} {input.fixed} {input.realigned} > {output}"
         
 
+# Only run when the pipeline is run the first time. This rule is likely not complete... Implement when adding hg38
 rule getbundle:
     ''' Soft-link the reference  and bundle files from previusly downloaded directory
         indicated in config file'''
@@ -300,26 +263,5 @@ rule getbundle:
 	"picard {params.java} SortSam {params.sort} INPUT=/dev/stdin OUTPUT=/dev/stdout 2> {log.dict};"
 	"samtools faidx {input.REFERENCE} 2> {log.fai};"
         
-"""
-OLD version OBS!
-rule getbundle:
-    ''' Soft-link the reference  and bundle files from previously downloaded directory
-    indicated in config file'''
-    output:
-	 
-#        REFERENCE = config["ref"]["genome"]
-#        MILLS = config["ref"]["mills"]
-#        KGINDELS = config["ref"]["kgindels"]
-    params:
-        REFERENCE = config["bundle"]["genome"]
-        MILLS = config["bundle"]["mills"]
- 	KGINDELS = config["bundle"]["kgindels"]
-    shell:
-        "mkdir -p indexfiles;"
-	"ln -s {params.REFERENCE} {output.REFERENCE};"
-        "ln -s {params.MILLS} {output.MILLS};"
-        "ln -s {params.KGINDELS} {output.KGINDELS};"
-
-
 
 """

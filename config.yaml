@@ -2,13 +2,13 @@
 settings:
   mapper: ["bwa"]
   threads: 1
-  seqdir: "/media/box2/Data/Joanna/trimmed_fastq/Tcell/"
-  resdir: "LCM/"  
+  seqdir: "/media/box2/Data/Joanna/trimmed_fastq/multi_tissues/"
+  resdir: "multi_tissues/"  
   javaopts: "-Xmx5g -Djava.io.tmpdir=`pwd`/tmp"
 
 # information on folder/file structure for the samples
 sampleinfo:
-  file: "sampleinfo.csv"
+  file: "sampleinfo_multi_tissues.csv"
   outfmt: "{sample}{extension}"
   mergefmt: "{experiment}/{sample}/{sample}"
 
