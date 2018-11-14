@@ -16,7 +16,7 @@ class Reads:
             print("Error: No reads to sample from")
             sys.exit(-1)
 
-    def iterAllReads():
+    def __iter__(self):#iterAllReads():
         try:
             for read in self.reads["Ref"] + self.reads["Mut"]:
                 yield read
@@ -111,7 +111,7 @@ class Locus:
 
         return ret
 
-    def allReads(zyg):
+    def allReads(self):
         return self.zyg["hom"]
         
 
@@ -152,8 +152,8 @@ class ReadsDb:
     def writeBulkToFile(self, outprefix):
         myReads = pysam.AlignmentFile("{o}_bulk.bam".format(o=outprefix), "wb", template=self.template)
         for locus in self.loci:
-            for read in locus.allReads:
-                myReads.write(r)
+            for read in locus.allReads():
+                myReads.write(read)
         
     def fill(self, hetReadsFile, homReadsFile, Sitesfile):
         with open(Sitesfile, "rt") as sites:
