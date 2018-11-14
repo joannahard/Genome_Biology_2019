@@ -13,7 +13,7 @@ class Reads:
         try:
             return random.choices(self.reads["Ref"], k=nRef) + random.choices(self.reads["Mut"], k=nMut)
         except IndexError:
-            print("Error: No reads to sample from")
+            sys.stderr.write("Error: No reads to sample from")
             sys.exit(-1)
 
     def __iter__(self):#iterAllReads():
@@ -21,7 +21,7 @@ class Reads:
             for read in self.reads["Ref"] + self.reads["Mut"]:
                 yield read
         except IndexError:
-            print("Error: No reads to iterate over")
+            sys.stderr.write("Error: No reads to iterate over")
             sys.exit(-1)
         
     
@@ -44,17 +44,23 @@ class Locus:
 
     def setStates(self, zyg, readset):
         obs_states = {"Ref": [], "Mut" : []}
-        for read in iterCoveringReads(hetReads, chr = self.chr,
+        for read in iterCoveringReads(readset, chr = self.chr,
                                       G = self.G-1, S = self.S-1):
-            allele, state = getState(read, self.G - 1, self.S - 1)
+            allele, state = getState(read, self.G-1, self.S-1)
             obs_states[allele].append(state)
-        self.zyg[zyg].states["Ref"] = obs_states["Ref"][0]
-        obs_states = Counter(obs_states["Mut"])
-        if len(obs_states) > 1:
-            print("Abberrant 'Mut' states found for the {} zygote; ".format(zyg)
-                  "the most common is chosen as the true 'Mut' state:\n"
-                  "{}".format(obs_states))
-        self.zyg[zyg].states["Mut"] = min(obs_states,key=obs_states.get)
+        # We need to check for occasional aberrant states (seq errors?)
+        for allele in ["Ref", "Mut"]:
+            tmp = Counter(obs_states[allele])
+            if len(tmp) > 1:
+                sys.stderr.write("Abberrant '{a}' states found at "
+                                 "{chr}:{G}-{S}, for the '{z}' zygote; "
+                                 "the most common is chosen as the true "
+                                 "'{a}' state:\n{o}".format(a = allele,
+                                                            chr=self.chr,
+                                                            G=self.G,
+                                                            S=self.S,
+                                                            z=zyg, o=tmp))
+            self.zyg[zyg].states[allele] = max(tmp,key=tmp.get)
         
     def addAllReads(self,  hetReads, homReads):
         self.setStates("het", hetReads)
@@ -73,12 +79,17 @@ class Locus:
 
     def addRead(self, zyg, read, n):
         allele, state = getState(read, self.G - 1, self.S - 1)
-        if state not in self.zyg[zyg].states[allele]:
-            print("Error: Abberrant state found for read {n} at {chr}:{G}-{S}, {z} allele {a}: {s} != {p}, compared to previous state. This read is excluded".format(n=n, chr=self.chr, G=self.G, S=self.S, z=zyg, a=allele, s=state, p=self.zyg[zyg].states[allele]))
-            return
-#            sys.exit(-1)
-        self.zyg[zyg].states[allele] = state
-        self.zyg[zyg].reads[allele].append(read)
+        if state in self.zyg[zyg].states[allele]:
+            self.zyg[zyg].reads[allele].append(read)
+        else:
+            sys.stderr.write("Error: Abberrant state found for "
+                             "read {n} at {chr}:{G}-{S}, '{z}' "
+                             "allele '{a}': {s} != {p}, compared "
+                             "to previous state. This read is "
+                             "ignored".format(n=n, chr=self.chr,
+                                              G=self.G, S=self.S,
+                                              z=zyg, a=allele, s=state,
+                                              p=self.zyg[zyg].states[allele]))
 
     def simulateLocus(self, T, SNV, EAL, fADO, locusCounts):
         C = unnest(T)
@@ -286,7 +297,7 @@ def getState(read, G, S):
     g = s[t[G][0] - sstart]
     s = s[t[S][0] - sstart]
     allele = "Ref" if g == t[G][1] else "Mut"
-    return (allele, [g,s])
+    return (allele, "_".join([g,s]))
  
 if __name__ == "__main__":
     main()
