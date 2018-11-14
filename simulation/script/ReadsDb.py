@@ -42,12 +42,29 @@ class Locus:
         ""
         return ret
 
+    def setStates(self, zyg, readset):
+        obs_states = {"Ref": [], "Mut" : []}
+        for read in iterCoveringReads(hetReads, chr = self.chr,
+                                      G = self.G-1, S = self.S-1):
+            allele, state = getState(read, self.G - 1, self.S - 1)
+            obs_states[allele].append(state)
+        self.zyg[zyg].states["Ref"] = obs_states["Ref"][0]
+        obs_states = Counter(obs_states["Mut"])
+        if len(obs_states) > 1:
+            print("Abberrant 'Mut' states found for the {} zygote; ".format(zyg)
+                  "the most common is chosen as the true 'Mut' state:\n"
+                  "{}".format(obs_states))
+        self.zyg[zyg].states["Mut"] = min(obs_states,key=obs_states.get)
+        
     def addAllReads(self,  hetReads, homReads):
+        self.setStates("het", hetReads)
         n = 0
         for read in iterCoveringReads(hetReads, chr = self.chr,
                                       G = self.G-1, S = self.S-1):
             self.addRead("het", read,n)
             n+=1
+            
+        self.setStates("hom", homReads)
         n = 0
         for read in iterCoveringReads(homReads, chr = self.chr,
                                       G = self.G-1, S = self.S-1):
@@ -56,10 +73,10 @@ class Locus:
 
     def addRead(self, zyg, read, n):
         allele, state = getState(read, self.G - 1, self.S - 1)
-        if state != self.zyg[zyg].states[allele] and self.zyg[zyg].states[allele] != None:
-            print("Error: mismatching states for read {n} at {chr}:{G}-{S}, {z} allele {a}: {s} != {p}, compared to previous state".format(n=n, chr=self.chr, G=self.G, S=self.S, z=zyg, a=allele, s=state, p=self.zyg[zyg].states[allele]))
+        if state not in self.zyg[zyg].states[allele]:
+            print("Error: Abberrant state found for read {n} at {chr}:{G}-{S}, {z} allele {a}: {s} != {p}, compared to previous state. This read is excluded".format(n=n, chr=self.chr, G=self.G, S=self.S, z=zyg, a=allele, s=state, p=self.zyg[zyg].states[allele]))
             return
-            sys.exit(-1)
+#            sys.exit(-1)
         self.zyg[zyg].states[allele] = state
         self.zyg[zyg].reads[allele].append(read)
 
