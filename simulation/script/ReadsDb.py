@@ -15,7 +15,16 @@ class Reads:
         except IndexError:
             print("Error: No reads to sample from")
             sys.exit(-1)
-            
+
+    def iterAllReads():
+        try:
+            for read in self.reads["Ref"] + self.reads["Mut"]:
+                yield read
+        except IndexError:
+            print("Error: No reads to iterate over")
+            sys.exit(-1)
+        
+    
 
 class Locus:
     def __init__(self, chr, G, S):
@@ -102,6 +111,8 @@ class Locus:
 
         return ret
 
+    def allReads(zyg):
+        return self.zyg["hom"]
         
 
 
@@ -132,17 +143,18 @@ class ReadsDb:
 
     def simulateAndWriteToFile(self, T, f_SNV, f_EAL, f_ADO, locusCounts, outprefix):
         reads = self.simulate(T, f_SNV, f_EAL, f_ADO, locusCounts)
-        header = { 'HD': {'VN': '1.0'},
-                   'SQ': [{'LN': 1575, 'SN': 'chr1'},
-                          {'LN': 1584, 'SN': 'chr2'}] }
-
         for c in unnest(T):
             myReads = pysam.AlignmentFile("{o}_cell{c}.bam".format(o=outprefix, c=c), "wb", template=self.template)
             for l in reads:
                 for r in l[c]:
                     myReads.write(r)
 
-    
+    def writeBulkToFile(self, outprefix):
+        myReads = pysam.AlignmentFile("{o}_bulk.bam".format(o=outprefix), "wb", template=self.template)
+        for locus in self.loci:
+            for read in locus.allReads:
+                myReads.write(r)
+        
     def fill(self, hetReadsFile, homReadsFile, Sitesfile):
         with open(Sitesfile, "rt") as sites:
             for row in sites:
@@ -190,7 +202,9 @@ def main():
     
     readsDB.simulateAndWriteToFile(popT, f_SNV, f_EAL, f_ADO, LocusCounts, outprefix)
 
+    readsDB.writeBulkToFile(outprefix)
 
+    
             
 # Helper functions 
 #
