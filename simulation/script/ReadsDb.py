@@ -13,7 +13,7 @@ class Reads:
         try:
             return random.choices(self.reads["Ref"], k=nRef) + random.choices(self.reads["Mut"], k=nMut)
         except IndexError:
-            sys.stderr.write("Error: No reads to sample from")
+            sys.stderr.write("Error: No reads to sample from\n")
             sys.exit(-1)
 
     def __iter__(self):#iterAllReads():
@@ -21,7 +21,7 @@ class Reads:
             for read in self.reads["Ref"] + self.reads["Mut"]:
                 yield read
         except IndexError:
-            sys.stderr.write("Error: No reads to iterate over")
+            sys.stderr.write("Error: No reads to iterate over\n")
             sys.exit(-1)
         
     
@@ -55,7 +55,7 @@ class Locus:
                 sys.stderr.write("Abberrant '{a}' states found at "
                                  "{chr}:{G}-{S}, for the '{z}' zygote; "
                                  "the most common is chosen as the true "
-                                 "'{a}' state:\n{o}".format(a = allele,
+                                 "'{a}' state:\n{o}\n".format(a = allele,
                                                             chr=self.chr,
                                                             G=self.G,
                                                             S=self.S,
@@ -86,7 +86,7 @@ class Locus:
                              "read {n} at {chr}:{G}-{S}, '{z}' "
                              "allele '{a}': {s} != {p}, compared "
                              "to previous state. This read is "
-                             "ignored".format(n=n, chr=self.chr,
+                             "ignored\n".format(n=n, chr=self.chr,
                                               G=self.G, S=self.S,
                                               z=zyg, a=allele, s=state,
                                               p=self.zyg[zyg].states[allele]))
@@ -147,7 +147,7 @@ class Locus:
 class ReadsDb:
     def __init__(self, hetReadsFile, homReadsFile, Sitesfile):
         self.loci = []
-        self.template = None
+        self.header = None
         self.fill(hetReadsFile, homReadsFile, Sitesfile)
 
     def iter_simulate(self, T, pSNV, pEAL, f_ADO, locusCounts):
@@ -172,15 +172,25 @@ class ReadsDb:
     def simulateAndWriteToFile(self, T, f_SNV, f_EAL, f_ADO, locusCounts, outprefix):
         reads = self.simulate(T, f_SNV, f_EAL, f_ADO, locusCounts)
         for c in unnest(T):
-            myReads = pysam.AlignmentFile("{o}_cell{c}.bam".format(o=outprefix, c=c), "wb", template=self.template)
+            rgtag = "cell{}".format(c)
+            myheader = self.header
+            for tag in ['ID','LB','SM']:
+                myheader['RG'][0][tag]= rgtag
+            myReads = pysam.AlignmentFile("{o}_cell{c}.bam".format(o=outprefix, c=c),
+                                          "wb", header=myheader)
             for l in reads:
                 for r in l[c]:
+                    r.set_tag("RG",rgtag)
                     myReads.write(r)
 
     def writeBulkToFile(self, outprefix):
-        myReads = pysam.AlignmentFile("{o}_bulk.bam".format(o=outprefix), "wb", template=self.template)
+        myheader = self.header
+        for tag in ['ID','LB','SM']:
+            myheader['RG'][0][tag]= "bulk"
+        myReads = pysam.AlignmentFile("{o}_bulk.bam".format(o=outprefix), "wb", header=myheader)
         for locus in self.loci:
             for read in locus.allReads():
+                read.set_tag("RG","bulk")
                 myReads.write(read)
         
     def fill(self, hetReadsFile, homReadsFile, Sitesfile):
@@ -195,9 +205,9 @@ class ReadsDb:
                 key = "{c}:{g}".format(c=chr, g=Gsam)
                 self.loci.append(Locus(chr, Gsam, Ssam))
         hetReads = pysam.AlignmentFile(hetReadsFile, "rb")
-        self.template=hetReads
+        self.header=hetReads.header.as_dict()
         homReads = pysam.AlignmentFile(homReadsFile, "rb")
-
+        
         # Notice that pysam works with 0-based pos, while input pos
         # (originally from sam-format) are 1-based
         for locus in self.loci:
