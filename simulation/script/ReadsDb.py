@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import pysam, sys, random, math
-from collections import Counter
+from collections import Counter, OrderedDict
 
 class Reads:
     def __init__(self):
@@ -13,7 +13,7 @@ class Reads:
         try:
             return random.choices(self.reads["Ref"], k=nRef) + random.choices(self.reads["Mut"], k=nMut)
         except IndexError:
-            sys.stderr.write("Error: No reads to sample from\n")
+            sys.stdout.write("Error: No reads to sample from\n")
             sys.exit(-1)
 
     def __iter__(self):#iterAllReads():
@@ -21,7 +21,7 @@ class Reads:
             for read in self.reads["Ref"] + self.reads["Mut"]:
                 yield read
         except IndexError:
-            sys.stderr.write("Error: No reads to iterate over\n")
+            sys.stdout.write("Error: No reads to iterate over\n")
             sys.exit(-1)
         
     
@@ -52,7 +52,7 @@ class Locus:
         for allele in ["Ref", "Mut"]:
             tmp = Counter(obs_states[allele])
             if len(tmp) > 1:
-                sys.stderr.write("Abberrant '{a}' states found at "
+                sys.stdout.write("Abberrant '{a}' states found at "
                                  "{chr}:{G}-{S}, for the '{z}' zygote; "
                                  "the most common is chosen as the true "
                                  "'{a}' state:\n{o}\n".format(a = allele,
@@ -82,7 +82,7 @@ class Locus:
         if state in self.zyg[zyg].states[allele]:
             self.zyg[zyg].reads[allele].append(read)
         else:
-            sys.stderr.write("Error: Abberrant state found for "
+            sys.stdout.write("Error: Abberrant state found for "
                              "read {n} at {chr}:{G}-{S}, '{z}' "
                              "allele '{a}': {s} != {p}, compared "
                              "to previous state. This read is "
@@ -97,8 +97,9 @@ class Locus:
 
         # sSNV or not
         if SNV:
-            v = random.choice(list(T.keys()))
-            for c in T[v]:
+            L= flatten(T)
+            v = random.choice(list(L.keys()))
+            for c in L[v]:
                 zygReads["l"][c] = self.zyg["het"]
 
         fReads = { "l" : { c : { "Ref" :  1 , "Mut" : 1 } for c in C } }
@@ -250,12 +251,20 @@ def unnest(adict):
     if type(adict) in [ int, str, float ]:
         return [adict]
     ret = []
-    if type(adict) == dict:
+    if type(adict) in [dict, OrderedDict]:
         for i in adict.values():
             ret.extend(unnest(i))
     else:
         for i in adict:
             ret.extend(unnest(i))        
+    return ret
+
+def flatten(adict):
+    ret = {}
+    if type(adict) in [dict, OrderedDict]:
+        for i in adict.keys():
+            ret.update(flatten(adict[i]))
+            ret[i] = unnest(adict[i])
     return ret
 
 def assignSubSample(L, f):
