@@ -174,13 +174,12 @@ class ReadsDb:
         # L = len(self.loci)
         # SNV = [(random.random() < pSNV) for l in range(L) ]  # S is SNV
         # EAL = [(random.random() < pEAL) for l in range(L) ] # existence of alignment error
-        return [ self.loci[l].simulateLocus(T, SNV[l], EAL[l], 0.5, locusCounts) for l in range(len(self.loci)) ]
+        return { str(self.loci[l]) : self.loci[l].simulateLocus(T, SNV[l], EAL[l], 0.5, locusCounts) for l in range(len(self.loci)) }
 
     def simulateAndWriteToFile(self, T, f_SNV, f_EAL, f_ADO, locusCounts, outprefix):
         reads = self.simulate(T, f_SNV, f_EAL, f_ADO, locusCounts)
         with open("{o}_genVals.txt".format(o=outprefix), "wt") as genVals:
-            for l in reads:
-                genVals.write("{}\n".format(json.dumps({ i:l[i] for i in ['locus', 'SNV','EAL','ADO','states'] }, indent=2)))
+            genVals.write("{}\n".format(json.dumps({ k : { i:v[i] for i in ['locus', 'SNV','EAL','ADO','states'] } for k,v in reads.items() }, indent=2)))
         
         for c in unnest(T):
             rgtag = "cell{}".format(c)
@@ -189,7 +188,7 @@ class ReadsDb:
                 myheader['RG'][0][tag]= rgtag
             cellReads = pysam.AlignmentFile("{o}_cell{c}.bam".format(o=outprefix, c=c),
                                             "wb", header=myheader)
-            for l in reads:
+            for l in reads.values():
                 for r in l['reads'][c]:
                     r.set_tag("RG",rgtag)
                     cellReads.write(r)
