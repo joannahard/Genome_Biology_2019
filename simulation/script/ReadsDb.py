@@ -178,7 +178,7 @@ class ReadsDb:
 
     def simulateAndWriteToFile(self, T, f_SNV, f_EAL, f_ADO, locusCounts, outprefix):
         reads = self.simulate(T, f_SNV, f_EAL, f_ADO, locusCounts)
-        with open("{o}_genVals.txt".format(o=outprefix), "wt") as genVals:
+        with open("{o}_genVals.json".format(o=outprefix), "wt") as genVals:
             genVals.write("{}\n".format(json.dumps({ k : { i:v[i] for i in ['locus', 'SNV','EAL','ADO','states'] } for k,v in reads.items() }, indent=2)))
         
         for c in unnest(T):
