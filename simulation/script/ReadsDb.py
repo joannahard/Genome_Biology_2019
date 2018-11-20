@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import pysam, sys, random, math
+import pysam, sys, random, math, json
 from collections import Counter, OrderedDict
 
 class Reads:
@@ -35,11 +35,12 @@ class Locus:
                 "hom" : Reads() }
 
     def __str__(self):
-        ret = "" + \
-        "chr = {}\n".format(self.chr) + \
-        "G = {}\n".format(self.G) + \
-        "S = {}\n".format(self.S) + \
-        ""
+        ret = "{}:{}-{}".format(self.chr, self.G, self.S)
+        # ret = "" + \
+        # "chr = {}\n".format(self.chr) + \
+        # "G = {}\n".format(self.G) + \
+        # "S = {}\n".format(self.S) + \
+        # ""
         return ret
 
     def setStates(self, zyg, readset):
@@ -115,7 +116,8 @@ class Locus:
 
 
         #ADO on l, randomly on either allele
-        for c in random.sample(C, math.floor(len(C) * fADO)):
+        adoC = random.sample(C, math.floor(len(C) * fADO))
+        for c in adoC:
             allele = "Ref" if random.random() > 0.5 else "Mut"
             fReads["l"][c][allele] = 0
 
@@ -133,12 +135,16 @@ class Locus:
                     fReads[zyg][c][allele] *= random.choices(counts, weights=weights, k=1)[0]
 
         # output
-        ret = { c : [] for c in C }
+        states = {}
+        reads = { c : [] for c in C }
         for c in C:
+            states["cell{}".format(c)] = zygReads[zyg][c].states
             for zyg in fReads.keys():
-                ret[c].extend(zygReads[zyg][c].sample(fReads[zyg][c]["Ref"],fReads[zyg][c]["Mut"]))
+                reads[c].extend(zygReads[zyg][c].sample(fReads[zyg][c]["Ref"],fReads[zyg][c]["Mut"]))
 
-        return ret
+        return { 'locus' : self.__str__(), 'SNV' : SNV, 'EAL' : EAL,
+                'ADO' : { "cell{}".format(c): True if c in adoC else False for c in C },
+                'states' : states, 'reads' : reads }
 
     def allReads(self):
         return self.zyg["hom"]
@@ -172,17 +178,21 @@ class ReadsDb:
 
     def simulateAndWriteToFile(self, T, f_SNV, f_EAL, f_ADO, locusCounts, outprefix):
         reads = self.simulate(T, f_SNV, f_EAL, f_ADO, locusCounts)
+        with open("{o}_genVals.txt".format(o=outprefix), "wt") as genVals:
+            for l in reads:
+                genVals.write("{}\n".format(json.dumps({ i:l[i] for i in ['locus', 'SNV','EAL','ADO','states'] }, indent=2)))
+        
         for c in unnest(T):
             rgtag = "cell{}".format(c)
             myheader = self.header
             for tag in ['ID','LB','SM']:
                 myheader['RG'][0][tag]= rgtag
-            myReads = pysam.AlignmentFile("{o}_cell{c}.bam".format(o=outprefix, c=c),
-                                          "wb", header=myheader)
+            cellReads = pysam.AlignmentFile("{o}_cell{c}.bam".format(o=outprefix, c=c),
+                                            "wb", header=myheader)
             for l in reads:
-                for r in l[c]:
+                for r in l['reads'][c]:
                     r.set_tag("RG",rgtag)
-                    myReads.write(r)
+                    cellReads.write(r)
 
     def writeBulkToFile(self, outprefix):
         myheader = self.header
