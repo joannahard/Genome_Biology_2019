@@ -279,7 +279,7 @@ def flatten(adict):
 def assignSubSample(L, f):
     k = math.floor(f *len(L))
     sample = random.sample(L, k)
-    return [ 1 if l in sample else 0 for l in L ]
+    return [ True if l in sample else False for l in L ]
 
 def createLocusCounts(counts_file, limit):
     locusCounts = { "Ref": [], "Mut": [] }
