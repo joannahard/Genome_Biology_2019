@@ -16,6 +16,13 @@
 \section{Notation}
 \label{sec:notation}
 
+\subsection{Loci and Cells}
+\label{sec:loci-cells}
+
+We will generate reads for a set $L$ of loci in a set $C$ of cells. A
+locus in $L$ is defined as comprising two sites $S$ and $G$,close
+enough to be covered by a (paired-end) read. The cells in $C$ are
+assumed to form a related population.
 
 
 \subsection{States of $G$}
@@ -25,8 +32,8 @@
 For a locus $l\in L$, the genome states of $G$ are referred to as
 $g1/g2$, where $g1$ is the nucleotide state on allele $1$ and $g2$ is
 the state on allele $2$.  $G$ will always be heterozygotic and,
-moreover, the assignment of $g1$ and $g2$ to the maternal and paternal
-allele are made such that $g1=R$ and $g2=A$, where $R$ is the
+moreover, the assignment of $g1$ and $g2$ to maternal and paternal
+alleles are made such that $g1=R$ and $g2=A$, where $R$ is the
 reference allele, and $A$ is the alternative
 allele. This assignment is consistent within
 $l$ and over $C$.
@@ -39,15 +46,15 @@ $s1$ and $s2$ are located on alleles 1 and 2, respectively, as
 determined by the states of $G$ above. The states of $S$ are
 determined by the simulation: If $S$ is a generated as a sSNV in the
 population, the state of $S$ can be homozygotic or heterozygotic for
-individual cells, while if $S$ is not and sSNV, all cells will be
+individual cells, while if $S$ is not an sSNV, all cells will be
 homozygotic for $S$.  In the former case, all heterozygotic cells will
 will have the same of two mutually exclusive possible genotypes, $(i)$
 $s1=R$ and $s2=A$ or $(ii)$ $s1=A$ and $s2=R$, where $R$ is the
 reference allele found in bulk and $A$ is a specified alternative
 state. For simplicity of explanation, we will w.l.o.g. in the
 following text assume case $(i)$ when discussing a sSNV locus. For all
-homozygotic loci, we always have $g1=g2=R$. The described setup is
-consistent within $l$.
+homozygotic loci, we always have $s1=s2=R$. The described setup is
+consistent within $l$, but may, as indicated, vary over $C$.
 
 \subsection{Haplotypes and genotypes}
 \label{sec:haplotypes-genotypes}
@@ -71,19 +78,19 @@ allele $i$ och $l$ in $c$.
 
 To consistently model the distribution of mutated sSNVs among cells
 for all loci, we need to describe a population structure of the cells.
-A nice, general way to do this, allowing for any scenario we decide to
-use in the end, is to define the relationship between cells as a tree
-with inner nodes indexed by numbers, and cells at the leaves. The tree
-needs not be perfectly binary, but will typically have polytomies --
-in a very simple scenario, this could be a tree with two inner nodes
-(clades) representing two clones of cells (plus a root node). The
-inner node numbers can be viewed as indexing sets of related cells
-(clades). Let $V$ be the set of inner vertex indexed by numbers sothat
-the root node will always have number $0$.
+A nice, general way to do this, allowing for any scenario we might
+want to use, is to define the relationship between cells as a tree,
+$T$, with inner nodes indexed, e.g., by numbers, and cells at the leaves. The
+tree needs not be perfectly binary, but will typically have polytomies
+-- in a very simple scenario, this could be a tree with two inner
+nodes (clades) representing two clones of cells (plus a root
+node). The inner node numbers can be viewed as indexing sets of
+related cells (clades). Let $V$ be the set of numbers indexing inner vertices,
+excluding the root of $T$.
 
 When we, for a given sSNV locus, want to simulate which cells should
 be heterozygotic for $S$, we simply draw a inner node number randomly
-from $V\setminus \{0\}$ and set all cells in the corresponding
+from $V$ and set all cells in the corresponding
 set/clade to be heterozygotic; all remaining cells are set to be
 homozygotic.  In our simple two-clone tree example, this would
 correspond to making all cells in one clone heterozygotic and all
@@ -93,63 +100,78 @@ Since we use the same tree for all loci, all sSNVs will be consistent
 with the population structure.
 
 \emph{Notice that, by using a tree with a minimum clade size (e.g., no clade
-  with less than $m$ cells will have a number), we can avoid cases
+  with less than $m$ cells will have a number), we can avoid generating cases
   where the mutated state occurs only in a single (or few) cell(s),
   while retaining some biological realism.}
 
 
-\subsection{Reads sets}
+\subsection{Empirical Reads sets}
 \label{sec:reads-sets}
 
 
- We will work with four sets of reads covering a locus with $S$
-and $G$; The reads are derived from bulk-RNAseq of two different cell
+For each locus, $l$, we will work with four sets of reads covering a locus with $S$
+and $G$; The reads are derived from bulk-DNAseq of two different cell
 populations, one of which one is heterozygous for $S$ and the other is
 homozygous for $S$; both are heterozygous for $G$. The reads sets
 derived from each allele of the heterozygous population are called
-$het1$ and $het2$, respectively. Similarly, the reads sets from the
+$hetRef$ and $hetMut$, respectively. Similarly, the reads sets from the
 homozygous population are called $hom1$ and $hom2$. The allele
 assignments and the $G$ and $S$ states are defined such that
 $het1=hom1=RR$.
 
+\subsection{Empirical Coverage distribution}
+\label{sec:cover-distr}
+We will make use of a empirically determined frequency distribution,
+$d_{COV}$, over reads coverage, i.e., the number of reads from each
+allele in a locus. The distribution $d_{COV}$ is estimated over the
+reads for all loci and cells from a single-cell DNAseq
+experiment. This distribution is used i.i.d for all generated cells
+and loci.
+
 
 \section{Generation}
 \label{sec:generation}
-The read sets will be used to generate cell population scenarios
-comprising a locus $l$, which either is homozygotic for $S$ in all
-cells or is a sSNV, i.e., some cells are homozygotic for $S$ and other
-are heterozygotic, and a potential locus $l'$, which either is
-homozygotic or heterozygotic for all cells.  The locus $l'$ will be
-used to simulate possible alignments errors ($E$) when predicting the
+The locus-specific read sets will be used to generate cell population
+scenarios comprising a locus $l$, which either is homozygotic for $S$
+in all cells or is a sSNV, i.e., some cells are homozygotic for $S$
+and other are heterozygotic, and a potential locus $l'$, which either
+is homozygotic or heterozygotic for all cells; whether $S$ is a sSNV
+is determined by a variable $SNV$.  The locus $l'$ will be used to
+simulate possible alignments errors ($EAL$) when predicting the
 genotype of $l$.
 %
 In addition, we will simulate allelic dropouts ($ADO$) in $l$ and
-possibly $l'$, while empirical distributions are used for allelic bias
-($B$) and read depth ($N$), or allele-specific reads counts ($C$).
+possibly $l'$, while empirical distributions are used for
+allele-specific reads counts ($C$).
 
 The strategy for generating reads is to use predefined probabilities
-of alignment error, allelic dropout and allelic count bias for $l$ to
-step-by-step determine a count distribution $f_R$ of number of reads
-to sample, over the possible reads sets
-$R=\{l_1(c), l_2(c), l'_1(c), l'_2(c)\}\subseteq\{het1, het2, hom1,
-hom2\}$ for $l$ in each cell $c$; notice that setting $f_R(h)=0$ for a
-reads set $h$ is equivalent to excluding sampling from $h$. We then
-sample reads following $f_R$ to simulate sequencing reads mapping to
-$l$.
+of $SNV$, $EAL$, $ADO$ and the empirical distribution of $C$ for $l$
+to step-by-step determine a count distribution $f_R$ of number of
+reads to sample, over the possible reads sets
+$R=\{l_1(c), l_2(c), l'_1(c), l'_2(c)\} \subseteq \{het1, het2, hom1, hom2\}$
+for $l$ in each cell $c$; notice that setting $f_R(h)=0$ for a reads
+set $h$ is equivalent to excluding sampling from $h$. We then sample
+reads following $f_R$ to simulate sequencing reads mapping to $l$.
 
 
-\subsection{Generating sSNV and determining $R$ , or equivalently, assigning genotype to alleles of $l$ and $l'$}
+\subsection{Generating $SNV$ and determining $R$ , or equivalently, assigning genotype to alleles of $l$ and $l'$}
 \label{sec:generating-ssnv}
 
 
-We can determine whether a locus $l$ will have an $sSNV$ $S$ in two ways:
+We first determine $SNV$ for a locus $l$, i.e., whether $l$ will have
+an $sSNV$ in $S$ ($SNV=1$) or not ($SNV=0$). This can be done using
+either of two strategies:
 \begin{enumerate}
-\item The locus $l$ will have a sSNV at $S$ ($SNV=1$) with a pre-defined probability $p_{SNV}$, which is i.i.d. over all loci.
-\item We set $f_{SNV}$,  the frequency of sSNV loci in $L$, and then sample random subset of $k=f_{SNV}|L|$ loci from $L$ and set these as SNVs.
+\item The locus $l$ will have a sSNV at $S$ ($SNV=1$) with a
+  pre-defined probability $p_{SNV}$, which is i.i.d. over all loci.
+\item We set $f_{SNV}$, the frequency of sSNV loci in $L$, and then
+  sample random subset of size $k=f_{SNV}|L|$ loci from $L$ and set
+  $SNV=1$ for these loci only. This allows more precise control of the
+  observed frequency of sSNV in the generated data.
 \end{enumerate}
 
 \begin{itemize}
-\item If  $l$ has $SNV==1$
+\item If  $l$ has $SNV=1$
   , then
   \begin{enumerate}
   \item For all cells $c\in C$ initialize $l_i(c)$ and $l'_i(c) $ to homozygotic
@@ -159,14 +181,14 @@ We can determine whether a locus $l$ will have an $sSNV$ $S$ in two ways:
       l'_1(c) &=& hom1 \\
       l'_2(c) &=& hom2 
     \end{eqnarray*}
-  \item sample a cell subset $V$ from the population tree
-  \item for all cells $c\in V$, change $l(c)$ to heterozygotic
+  \item Sample a cell subset $V$ from the population tree
+  \item For all cells $c\in V$, change $l(c)$ to heterozygotic
     \begin{eqnarray*}
       l_1(c) &=& het1 \\
       l_2(c) &=& het2 \\
     \end{eqnarray*}
   \end{enumerate}
-\item else for all cells $c\in C$, set $l(c)$ to homozygotic and $L'(c)$ to heterozygotic
+\item Otherwise ($SNV=0$), for all cells $c\in C$, set $l(c)$ to homozygotic and $L'(c)$ to heterozygotic
   \begin{eqnarray*}
     l_1(c) &=& hom1 \\
     l_2(c) &=& hom2 \\
@@ -175,20 +197,25 @@ We can determine whether a locus $l$ will have an $sSNV$ $S$ in two ways:
   \end{eqnarray*}
 \end{itemize}
 
+\emph{Notice that we have chosen to let the value of $SNV$ also
+  controls the read set assignment to $l'$ in such a way as to create
+  problems for variant calling.}
 
-\subsection{Alignment error}
+\subsection{Generating EAL}
 \label{sec:alignment-error}
 
-We can determine whether a locus $l$ will have an alignment error event ($EAL$) in two ways:
+Similar to the case of $SNV$ can determine whether a locus $l$ will
+have an alignment error event ($EAL$) using two different strategies,
 \begin{enumerate}
-\item The locus $l$ will have an $EAL$ with a pre-defined probability $p_{EAL}$, which is i.i.d. over all loci.
+\item The locus $l$ will have an $EAL$ with a pre-defined probability
+  $p_{EAL}$, which is i.i.d. over all loci.
 \item We set $f_{EAL}$, the frequency of $EAL$ loci in $L$, and then
-  sample random subset of $k=f_{EAL}|L|$ loci from $L$ and set $EAL=1$
-  for all these.
+  sample a random subset of size  $k=f_{EAL}|L|$ loci from $L$ and set $EAL=1$
+  for these loci, only.
 \end{enumerate}
 
 \begin{itemize}
-\item If $EAL==1$ the initial values of $f_R$ for each $c\in C$ are set
+\item If $EAL=1$ the initial values of $f_R$ for each $c\in C$ are set
   to:
 
 \begin{eqnarray}
@@ -197,7 +224,7 @@ We can determine whether a locus $l$ will have an alignment error event ($EAL$) 
   f_R(l'_1(c)) &=& 1\\
   f_R(l'_2(c)) &=& 1.
 \end{eqnarray}
-\item Otherwise ($EAL==0$), the initial values of $f_R$ for each $c\in C$ are
+\item Otherwise ($EAL=0$), the initial values of $f_R$ for each $c\in C$ are
 set to (i.e., excluding sampling from $l'$):
 \begin{eqnarray}
   f_R(l_1(c)) &=& 1\\
@@ -206,19 +233,18 @@ set to (i.e., excluding sampling from $l'$):
   f_R(l'_2(c)) &=& 0.
 \end{eqnarray}
 \end{itemize}
-Notice that presence of alignment errors is done on the \emph{population level}.
+\emph{Notice that presence of alignment errors is done on the \emph{population level}.}
 
 \subsection{Allelic dropout}
 \label{sec:allelic-dropout}
-\textit{NB! We have not yet decided exactly how to model ADO, hence the
-  description below is the most general possible. We will probably
-  limit this in the final version.}
 
-Presence of ADO is modeled on a per-cell basis. We can choose model ADO as occurring only on the alleles of $l$, so that the set of ADO alelles $R_{aADO} = \{l_1,l_2\}$,  or on any allele of $l$ or $l'$,  $R_{ADO}=R$ \emph{(Recall $R=\{l_1(c),l_2(c),l'_1(c),l'_2(c)\}$}.
+Presence of ADO in a locus is modeled on a per-cell basis and only on
+the alleles of $l$ (not on $l'$). Hence, we define
+$R_{ADO} = \{l_1,l_2\}$. 
 
-The presence of ADO in $c$ can be modeled in two ways:
+Also, the presence of ADO in $c$ can be modeled in two ways:
 \begin{enumerate}
-\item For each cell $c\inC$ and for each allele $i\in R_{ADO}$, set
+\item For each cell $c \in C$ and for each allele $i\in R_{ADO}$, set
   $f_R(i)=0$ with a pre-defined probability $p_{ADO}$, which is
   i.i.d. over all cells and alleles.
 \item Using a pre-defined frequency of ADO in
@@ -226,48 +252,27 @@ The presence of ADO in $c$ can be modeled in two ways:
   $C_{ADO}$, of $k=f_{ADO}|C|$ cells from $C$. For each $c\in
   C_{ADO}$, we randomly sample an allele $l_{ADO}$ from
   $R_{ADO}$ and set $f_R(l_{ADO})=0$.
+\end{enumerate}
 
-\subsection{Generating number of reads per allele}
+\emp{Notice that the reasoning for modeling $ADO$ only on
+  $l$ is, again, to focus on the problematic cases for variant
+  calling. However, if desired, it is possible to, e.g., set $R_{ADO}
+  = \{l_1,l_2, l'_1, l'_2\}$.}
+
+\subsection{Generating COV, the number of reads per allele}
 \label{sec:gener-numb-reads}
 
-% \emph{NB! It is not clear exactly how we should do this. Therefore I
-%   outline two possible alternatives that we have discussed. In both cases, the
-%   end product is the distribution $f_R(i)$ of number of reads to draw
-%   for $i\in R$ ( i.e., $R=\{l_1(c),l_2(c),l'_1(c),l'_2(c)\}$). }
 
-% \subsubsection{Alternative 1. (empirical) distributions for coverage $N$ and Allelic bias $B$}
-% \label{sec:allelic-bias}
-
-% First we draw the total number of reads $N$ from an empirical coverage distribution $f_N$.
-
-% Allelic bias, $p_B$ and $p'_B$, for $l$ and $l'$, respectively, will
-% be drawn i.i.d. from some assumed or empirical distribution. 
-
-
-% We then set
-
-% \begin{eqnarray*}
-%   f_R(l_1(c)) &=& N\frac{p_B}{2} f(l_1(c))\\
-%   f_R(l_2(c)) &=& N\frac{(1-p_B)}{2} f(l_2(c))\\
-%   f_R(l'_1(c)) &=& N\frac{p'_B}{2} f(l'_1(c))\\
-%   f_R(l'_2(c)) &=& N\frac{(1-p'_B)}{2} f(l'_2(c)).
-% \end{eqnarray*}
-
-% (Division by 2 to normalize for sampling twice: $p_B$ and $p'_B$.)
-
-% \subsubsection{Alternative 1. (empirical) distributions for allelic reads counts $C(i)$}
-% \label{sec:allelic-counts}
-
-First we draw the number of reads $C(i)$ for each allele $i\in R$
-i.i.d. from an empirical allele-specific coverage distribution $f_C$.
+First we draw the number of reads $COV(i)$ for each allele $i\in R$
+i.i.d. from an empirical allele-specific coverage distribution $d_{COV}$.
 
 We then set
 
 \begin{eqnarray*}
-  f_R(l_1(c)) &=& C(l_1) f_R(l_1(c))\\
-  f_R(l_2(c)) &=& C(l_2) f_R(l_2(c))\\
-  f_R(l'_1(c)) &=& C(l'_1) f_R(l'_1(c))\\
-  f_R(l'_2(c)) &=& C(l'_2) f_R(l'_2(c)).
+  f_R(l_1(c)) &=& COV(l_1) f_R(l_1(c))\\
+  f_R(l_2(c)) &=& COV(l_2) f_R(l_2(c))\\
+  f_R(l'_1(c)) &=& COV(l'_1) f_R(l'_1(c))\\
+  f_R(l'_2(c)) &=& COV(l'_2) f_R(l'_2(c)).
 \end{eqnarray*}
 
 \emph{Notice that, if the 'input' $f_R(i)=0$ (to right of the equal sign), then it is guaranteed that also the 'output' $f_R(i)=0$ (to the left of the equal sign).}
