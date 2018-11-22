@@ -138,7 +138,7 @@ class Locus:
         states = {}
         reads = { c : [] for c in C }
         for c in C:
-            states["cell{}".format(c)] = zygReads[zyg][c].states
+            states["cell{}".format(c)] = zygReads["l"][c].states
             for zyg in fReads.keys():
                 reads[c].extend(zygReads[zyg][c].sample(fReads[zyg][c]["Ref"],fReads[zyg][c]["Mut"]))
 
