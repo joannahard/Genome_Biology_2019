@@ -92,7 +92,7 @@ class Locus:
                                               z=zyg, a=allele, s=state,
                                               p=self.zyg[zyg].states[allele]))
 
-    def simulateLocus(self, T, SNV, EAL, fADO, locusCounts):
+    def simulateLocus(self, T, SNV, EAL, fADO, locusCounts, ADOfreqs = True):
         C = unnest(T)
         zygReads = { "l" : { c : self.zyg["hom"] for c in C } }
 
@@ -116,7 +116,13 @@ class Locus:
 
 
         #ADO on l, randomly on either allele
-        adoC = random.sample(C, math.floor(len(C) * fADO))
+        # if ADOfreqs = true then sample that a fraction fADO of cells, else
+        # use fADO as iid probability of each cell having ADO
+        adoC = None
+        if ADOfreqs:
+            adoC = random.sample(C, math.floor(len(C) * fADO))
+        else:
+            adoC = [ c for c in C if random.random < fADO ]
         for c in adoC:
             allele = "Ref" if random.random() > 0.5 else "Mut"
             fReads["l"][c][allele] = 0
@@ -146,7 +152,7 @@ class Locus:
                 'ADO' : { "cell{}".format(c): True if c in adoC else False for c in C },
                 'states' : states, 'reads' : reads }
 
-    def allReads(self):
+   def allReads(self):
         return self.zyg["hom"]
         
 
@@ -165,16 +171,20 @@ class ReadsDb:
         # SNV = [(random.random() < pSNV) for l in range(L) ]  # S is SNV
         # EAL = [(random.random() < pEAL) for l in range(L) ] # existence of alignment error
         for l in range(len(self.loci)):
-            yield self.loci[l].simulateLocus(T, SNV[l], EAL[l], 0.5, locusCounts) 
+            yield self.loci[l].simulateLocus(T, SNV[l], EAL[l], f_ADO, locusCounts) 
 
-    def simulate(self, T, f_SNV, f_EAL, f_ADO, locusCounts):
+    def simulate(self, T, f_SNV, f_EAL, f_ADO, locusCounts, freqs = True):
         L = range(len(self.loci))
-        SNV = assignSubSample(L, f_SNV) # S is SNV
-        EAL = assignSubSample(L, f_EAL) # existence of alignment error
-        # L = len(self.loci)
-        # SNV = [(random.random() < pSNV) for l in range(L) ]  # S is SNV
-        # EAL = [(random.random() < pEAL) for l in range(L) ] # existence of alignment error
-        return { str(self.loci[l]) : self.loci[l].simulateLocus(T, SNV[l], EAL[l], 0.5, locusCounts) for l in range(len(self.loci)) }
+        SNV = EAL = None
+        # if freqs = true then sample that fraction fSNV/fEAL of loci, else
+        # use fSNV/fEAL as iid probabilities of each locus being SNV/EAL
+        if freqs:
+            SNV = assignSubSample(L, f_SNV) # S is SNV
+            EAL = assignSubSample(L, f_EAL) # existence of alignment error
+        else:
+            SNV = [(random.random() < pSNV) for l in L ]  # S is SNV
+            EAL = [(random.random() < pEAL) for l in L ] # existence of alignment error
+        return { str(self.loci[l]) : self.loci[l].simulateLocus(T, SNV[l], EAL[l], 0.5, locusCounts, freqs) for l in range(len(self.loci)) }
 
     def simulateAndWriteToFile(self, T, f_SNV, f_EAL, f_ADO, locusCounts, outprefix):
         reads = self.simulate(T, f_SNV, f_EAL, f_ADO, locusCounts)
