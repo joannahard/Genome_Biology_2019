@@ -34,8 +34,17 @@ class Locus:
         self.zyg = { "het" : Reads(),
                 "hom" : Reads() }
 
-    def __str__(self):
+    def fullName(self):
         ret = "{}:{}-{}".format(self.chr, self.G, self.S)
+        # ret = "" + \
+        # "chr = {}\n".format(self.chr) + \
+        # "G = {}\n".format(self.G) + \
+        # "S = {}\n".format(self.S) + \
+        # ""
+        return ret
+
+    def __str__(self):
+        ret = "{}:{}".format(self.chr, self.S)
         # ret = "" + \
         # "chr = {}\n".format(self.chr) + \
         # "G = {}\n".format(self.G) + \
@@ -118,14 +127,21 @@ class Locus:
         #ADO on l, randomly on either allele
         # if ADOfreqs = true then sample that a fraction fADO of cells, else
         # use fADO as iid probability of each cell having ADO
-        adoC = None
+        adoC = []
         if ADOfreqs:
             adoC = random.sample(C, math.floor(len(C) * fADO))
+            for c in adoC:
+                zyg = "l" if random.random() < 0.5 else "lE"
+                allele = "Ref" if random.random() < 0.5 else "Mut"
+                fReads["l"][c][allele] = 0
         else:
-            adoC = [ c for c in C if random.random < fADO ]
-        for c in adoC:
-            allele = "Ref" if random.random() > 0.5 else "Mut"
-            fReads["l"][c][allele] = 0
+            for c in C:  
+                for zyg in fReads.keys():
+                    for allele in [ "Ref", "Mut"]:
+                        if random.random() < fADO:
+                            fReads[zyg][c][allele] = 0
+                            adoC.append(c)
+
 
         # #ADO on lE, randomly on either allele
         # for i in random.sample(locusCounts.keys(), fADO * locusCounts.keys()):
@@ -148,11 +164,11 @@ class Locus:
             for zyg in fReads.keys():
                 reads[c].extend(zygReads[zyg][c].sample(fReads[zyg][c]["Ref"],fReads[zyg][c]["Mut"]))
 
-        return { 'locus' : self.__str__(), 'SNV' : SNV, 'EAL' : EAL,
+        return { 'locus' : self.fullName(), 'SNV' : SNV, 'EAL' : EAL,
                 'ADO' : { "cell{}".format(c): True if c in adoC else False for c in C },
                 'states' : states, 'reads' : reads }
 
-   def allReads(self):
+    def allReads(self):
         return self.zyg["hom"]
         
 
@@ -163,30 +179,17 @@ class ReadsDb:
         self.header = None
         self.fill(hetReadsFile, homReadsFile, Sitesfile)
 
-    def iter_simulate(self, T, pSNV, pEAL, f_ADO, locusCounts):
-        L = range(len(self.loci))
-        SNV = assignSubSample(L, f_SNV) # S is SNV
-        EAL = assignSubSample(L, f_EAL) # existence of alignment error
-        # L = len(self.loci)
-        # SNV = [(random.random() < pSNV) for l in range(L) ]  # S is SNV
-        # EAL = [(random.random() < pEAL) for l in range(L) ] # existence of alignment error
-        for l in range(len(self.loci)):
-            yield self.loci[l].simulateLocus(T, SNV[l], EAL[l], f_ADO, locusCounts) 
-
     def simulate(self, T, f_SNV, f_EAL, f_ADO, locusCounts, freqs = True):
         L = range(len(self.loci))
         SNV = EAL = None
         # if freqs = true then sample that fraction fSNV/fEAL of loci, else
         # use fSNV/fEAL as iid probabilities of each locus being SNV/EAL
         if freqs:
-            EAL = assignSubSample(L, f_EAL) # existence of alignment error
-            preSNV= assignsubsample([ l for l in L if not EAl[l] ], f:SNV)
-            SNV = [ True if l in preSNV else False for l in l ]
-            print(EAL, preSNV, SNV)
+            EAL, SNV = assignSubSample(L, f_EAL, f_SNV) # existence of alignment error
         else:
-            EAL = [ (random.random() < pEAL) for l in L ] # existence of alignment error
-            SNV = [ False if EAL[l] else (random.random() < pSNV) for l in L ]  # S is SNV only if not having EAL
-        return { str(self.loci[l]) : self.loci[l].simulateLocus(T, SNV[l], EAL[l], 0.5, locusCounts, freqs) for l in range(len(self.loci)) }
+            EAL = [ (random.random() < f_EAL) for l in L ] # existence of alignment error
+            SNV = [ False if EAL[l] else (random.random() < f_SNV) for l in L ]  # S is SNV only if not having EAL
+        return { str(self.loci[l]) : self.loci[l].simulateLocus(T, SNV[l], EAL[l], f_ADO, locusCounts, freqs) for l in range(len(self.loci)) }
 
     def simulateAndWriteToFile(self, T, f_SNV, f_EAL, f_ADO, locusCounts, outprefix,freqs=True):
         reads = self.simulate(T, f_SNV, f_EAL, f_ADO, locusCounts, freqs)
@@ -288,10 +291,22 @@ def flatten(adict):
             ret[i] = unnest(adict[i])
     return ret
 
-def assignSubSample(L, f):
-    k = math.floor(f *len(L))
+def assignSubSample(L, f_EAL, f_SNV):
+    k = math.floor(f_EAL *len(L))
     sample = random.sample(L, k)
-    return [ True if l in sample else False for l in L ]
+    EAL = [ True if l in sample else False for l in L ]
+    
+    tmp = [ l for l in L if l not in sample ]
+    k = math.floor(f_SNV *len(tmp))
+    sample = random.sample(tmp, k)
+    SNV = [ True if l in sample else False for l in L ]
+    
+    return (EAL, SNV)
+
+# def assignSubSample(L, f):
+#     k = math.floor(f *len(L))
+#     sample = random.sample(L, k)
+#     return [ True if l in sample else False for l in L ]
 
 def createLocusCounts(counts_file, limit):
     locusCounts = { "Ref": [], "Mut": [] }
