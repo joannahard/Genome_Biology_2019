@@ -179,15 +179,17 @@ class ReadsDb:
         # if freqs = true then sample that fraction fSNV/fEAL of loci, else
         # use fSNV/fEAL as iid probabilities of each locus being SNV/EAL
         if freqs:
-            SNV = assignSubSample(L, f_SNV) # S is SNV
             EAL = assignSubSample(L, f_EAL) # existence of alignment error
+            preSNV= assignsubsample([ l for l in L if not EAl[l] ], f:SNV)
+            SNV = [ True if l in preSNV else False for l in l ]
+            print(EAL, preSNV, SNV)
         else:
-            SNV = [(random.random() < pSNV) for l in L ]  # S is SNV
-            EAL = [(random.random() < pEAL) for l in L ] # existence of alignment error
+            EAL = [ (random.random() < pEAL) for l in L ] # existence of alignment error
+            SNV = [ False if EAL[l] else (random.random() < pSNV) for l in L ]  # S is SNV only if not having EAL
         return { str(self.loci[l]) : self.loci[l].simulateLocus(T, SNV[l], EAL[l], 0.5, locusCounts, freqs) for l in range(len(self.loci)) }
 
-    def simulateAndWriteToFile(self, T, f_SNV, f_EAL, f_ADO, locusCounts, outprefix):
-        reads = self.simulate(T, f_SNV, f_EAL, f_ADO, locusCounts)
+    def simulateAndWriteToFile(self, T, f_SNV, f_EAL, f_ADO, locusCounts, outprefix,freqs=True):
+        reads = self.simulate(T, f_SNV, f_EAL, f_ADO, locusCounts, freqs)
         with open("{o}_genVals.json".format(o=outprefix), "wt") as genVals:
             genVals.write("{}\n".format(json.dumps({ k : { i:v[i] for i in ['locus', 'SNV','EAL','ADO','states'] } for k,v in reads.items() }, indent=2)))
         
