@@ -82,7 +82,7 @@ conbase_raw = conbase_raw[conbase_raw.columns.drop(list(conbase_raw.filter(regex
 
 # also prints rows with CONFLICT - remove all such rows.
 has_conflict = conbase_raw.apply(lambda x: any(x.str.contains("CONFLICT")), axis=1)
-if any(has_conflict):
+if conbase_raw.shape[0] > 0 and any(has_conflict):
     conbase_raw = conbase_raw.drop(conbase_raw.index[has_conflict])
 
 cb_sites = conbase_raw.CHROM.map(str) + ":" + conbase_raw.POS.map(str)
