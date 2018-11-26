@@ -81,7 +81,7 @@ conbase_raw = pd.read_csv(args.conbase_file, sep= "\t")
 conbase_raw = conbase_raw[conbase_raw.columns.drop(list(conbase_raw.filter(regex='Unnamed')))]    
 
 # also prints rows with CONFLICT - remove all such rows.
-has_conflict = conbase_raw.apply(lambda x: any(x.str.contains("CONFLICT")), axis=1)
+has_conflict = conbase_raw.apply(lambda x: any(x[5:].str.contains("CONFLICT")), axis=1)
 if conbase_raw.shape[0] > 0 and any(has_conflict):
     conbase_raw = conbase_raw.drop(conbase_raw.index[has_conflict])
 
