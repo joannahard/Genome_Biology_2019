@@ -1,0 +1,10 @@
+All rules files and snakefiles have a symlink in the directory where the analysis is run:
+
+/media/box2/Experiments/Joanna/Simulering/pipeline
+
+To run the pipeline, the conda "snake2" has all requirements.
+
+source activate snake2
+snakemake -p -j 50 all
+
+The all rule will exectute all the steps for conbase and monovar. Lira is not included an ran for all different simulation settings. 
