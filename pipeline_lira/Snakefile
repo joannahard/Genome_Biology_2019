@@ -1,0 +1,261 @@
+import os,sys
+
+configfile: "config_pipeline.yaml"
+            
+BAMDIR = config["bamdir"]
+CHROMOSOMES = [str(x) for x in config["chromosomes"]]
+OUTDIR = config["resdir"]
+
+# make targets for split:
+CHR_TARGETS = expand( OUTDIR + "{samples}/{chrom}/phasing/phasing-output.vcf", samples = config["samples"] + [config["bulk"]], chrom = CHROMOSOMES)
+#print(CHR_TARGETS)
+
+# rule that runs all
+# OBS! building the DAG takes very long time with all dynaic files.
+# Better to run one sample at a time with rule varcall
+# snakemake -np -j 30 lira_output/110/varcall_bulk/powered.regions.bed
+
+rule all:
+    input: expand(OUTDIR + "{sample}/varcall_"+ config["bulk"] + "/powered.regions.bed", sample = config["samples"])
+
+
+rule link_fasta:
+    input: config["genome"]
+    output: OUTDIR + "ref/" + config["reference_name"]
+    shell:
+        "ln -s {input} {output}"     
+
+
+rule make_config:
+    input:
+        ref = OUTDIR + "ref/" + config["reference_name"],
+	bamfile = config["bamdir"] + "{sample}.bam",
+	vcf = config["vcf"]
+    output: filename = OUTDIR + "config/config_{sample}.txt"
+    params:
+        ref_id = config["reference_identifier"],
+        ref = config["resdir_fullpath"] + "ref/" + config["reference_name"],        
+        individual = config["individual"],
+        gender = config["gender"],
+        a_path = config["resdir_fullpath"] + "{sample}",
+        bulk_name = config["bulk"]
+    run:
+        fh = open(output.filename,"w")
+        fh.write("name\t"+wildcards.sample+"\n")
+        fh.write("sample\t"+wildcards.sample+"\n")	
+        fh.write("analysis_path\t"+params.a_path+"\n")
+        fh.write("reference\t"+params.ref+"\n")
+        fh.write("reference_file\t"+params.ref+"\n")     
+        fh.write("bam\t"+input.bamfile+"\n")
+        fh.write("vcf\t"+input.vcf+"\n")
+        fh.write("gender\t"+params.gender+"\n")
+        fh.write("individual\t"+params.individual+"\n")
+        fh.write("phasing_software\tshapeit\n")
+        fh.write("reference_identifier\t"+params.ref_id+"\n")
+        if wildcards.sample == params.bulk_name:
+            fh.write("bulk\tT\n")
+        else:
+            fh.write("bulk\tF\n")     
+        fh.close()
+
+
+rule setup:
+    input: OUTDIR + "config/config_{sample}.txt"
+    output:	
+        conf2 = OUTDIR + "{sample}/config.txt",
+        bam = OUTDIR + "{sample}/reads.bam",
+        vcf = OUTDIR + "{sample}/input_calls.vcf.gz"			
+    shell:
+        "lira setup -c {input}"
+
+
+# copy last step as output - the phasing file.
+# and only have dynamic as output - cannot have both!
+# but final ouput from phasing needs to be copied and used as output from another rule split_chk
+rule split:
+    input:  OUTDIR + "{sample}/config.txt"
+    output:
+        sub_files = dynamic(OUTDIR + "{sample}/{chrom}/jobs/{region_id}/sites.bed"),
+        scripts = dynamic(OUTDIR + "{sample}/job_scripts/{chrom}_{region_id}.sh")        
+    params:
+        phasing = OUTDIR + "{sample}/{chrom}/phasing/phasing-output.vcf.gz",
+        tempfile = OUTDIR + "{sample}/{chrom}/phasing/phasing-output.vcf.gz.tmp"
+    shell:
+        "lira split -c {input} -m {wildcards.chrom};"
+        "cp {params.phasing} {params.tempfile}"
+
+
+# since output from split is partly dynamic and partly non-dynamic - recreate the output from phasing.
+rule split_chk:
+    input: dynamic(OUTDIR + "{sample}/{chrom}/jobs/{region_id}/sites.bed")
+    output: OUTDIR + "{sample}/{chrom}/phasing/phasing-output.vcf.gz"
+    params:
+        tempfile = OUTDIR + "{sample}/{chrom}/phasing/phasing-output.vcf.gz.tmp"
+    shell:
+        "if test -e {params.tempfile}; then cp {params.tempfile} {output}; fi"
+
+
+# run split with all chroms for one sample - does not work to expand without sample being spec
+# OBS! chkfile should be put in folder progress!
+rule split_onesample:
+    input: expand(OUTDIR + "{sample}/{chrom}/phasing/phasing-output.vcf.gz", chrom = CHROMOSOMES, sample = ["{sample}"])
+    output: OUTDIR + "{sample}/split_all_chrom.chk"
+    shell:
+        "touch {output}"
+
+        
+# plink:
+# Instead of their plink script, run submission of all the shell scripts in outdir/sample/job_scripts/
+# has names like {chrom}_{jobid}.sh
+# OBS! For next step, need to have a checkfile in folder outdir/sample/progress/
+# has name like .{chrom}_{jobid}
+# track final file vcf.info.rda in job folder.
+
+rule plink:
+    input: 
+        script = OUTDIR + "{sample}/job_scripts/{chrom}_{region_id}.sh",
+        sites_file = OUTDIR + "{sample}/{chrom}/jobs/{region_id}/sites.bed"
+    output:
+        chkfile = OUTDIR + "{sample}/progress/.{chrom}_{region_id}",
+        vcf_rda = OUTDIR + "{sample}/{chrom}/jobs/{region_id}/vcf.info.rda"
+    shell:
+        "bash {input.script};"
+        "touch {output.chkfile}"
+
+# make one summary checkfile for plink from one chromosome
+rule chrom_plink:        
+    input: dynamic(OUTDIR + "{sample}/{chrom}/jobs/{region_id}/vcf.info.rda")
+    output: OUTDIR + "{sample}/progress/plink_{chrom}.chk"
+    shell:
+        "touch {output}"
+
+
+# run plink with all chroms for one sample 
+rule plink_onesample:
+    input: expand(OUTDIR + "{sample}/progress/plink_{chrom}.chk", chrom = CHROMOSOMES, sample = ["{sample}"])
+    output: OUTDIR + "{sample}/progress/all_chrom_plink.chk"
+    shell:
+        "touch {output}"
+
+        
+        
+"""
+# compare - run for all samples vs bulk.
+Creates:
+folder: output/110/1/compare/
+-rw-rw-r-- 1 asa asa 2127952 Nov  1 10:44 single.cell.linkage.rda
+-rw-rw-r-- 1 asa asa 4508121 Nov  1 10:44 single.cell.vcf.info.rda
+-rw-rw-r-- 1 asa asa     127 Nov  1 10:44 log.txt
+-rw-rw-r-- 1 asa asa 5940631 Nov  1 10:45 bulk.linkage.rda
+-rw-rw-r-- 1 asa asa 7149651 Nov  1 10:45 bulk.vcf.info.rda
+-rw-rw-r-- 1 asa asa   36965 Nov  1 10:45 combined.somatic.bulk.rda
+-rw-rw-r-- 1 asa asa    1404 Nov  1 10:45 combined.mosaic.bulk.rda
+-rw-rw-r-- 1 asa asa 1065072 Nov  1 10:45 data.bulk.rda
+-rw-rw-r-- 1 asa asa 8716432 Nov  1 10:46 mutations.bulk.rda
+-rw-rw-r-- 1 asa asa       0 Nov  1 10:46 onek.bulk.bed
+-rw-rw-r-- 1 asa asa    3886 Nov  1 10:46 all.somatic.bulk.rda
+-rw-rw-r-- 1 asa asa    3892 Nov  1 10:46 candidate.somatic.bulk.rda
+-rw-rw-r-- 1 asa asa    2853 Nov  1 10:46 all.mosaic.bulk.rda
+-rw-rw-r-- 1 asa asa     229 Nov  1 10:46 summary.bulk.rda
+Track final file: summary.bulk.rda
+And scripts in:
+output/110/power.bulk_job_scripts/
+- contains shell scripts 1_1.sh to 1_99.sh
+"""
+
+# will have to run in 2 steps, like split, since output is both dynamic and normal.
+# check for summary.bulk.rda
+
+rule comare:
+    input:
+        sample_conf = OUTDIR + "{sample}/config.txt",
+        bulk_conf = OUTDIR + config["bulk"] + "/config.txt",
+        sample_chk = OUTDIR + "{sample}/progress/all_chrom_plink.chk",
+        bulk_chk = OUTDIR + config["bulk"] + "/progress/all_chrom_plink.chk",        
+        all_jobs = dynamic(OUTDIR + "{sample}/{chrom}/jobs/{region_id}/vcf.info.rda")
+    params:
+        summary = OUTDIR + "{sample}/{chrom}/compare/summary.bulk.rda",
+        tempfile = OUTDIR + "{sample}/{chrom}/phasing/summary.bulk.rda.tmp"
+    output:
+        scripts = dynamic(OUTDIR + "{sample}/power.bulk_job_scripts/{chrom}_{region_id}.sh")
+    shell:
+        "lira compare -s {input.sample_conf} -b {input.bulk_conf} -m {chrom};"
+        "cp {params.phasing} {params.tempfile}"
+
+# need to also include split output to get correct entries for the dynamics.        
+rule compare_chk:
+    input:
+        sites = dynamic(OUTDIR + "{sample}/{chrom}/jobs/{region_id}/sites.bed"),
+        scripts = dynamic(OUTDIR + "{sample}/power.bulk_job_scripts/{chrom}_{region_id}.sh")
+    output: OUTDIR + "{sample}/{chrom}/compare/summary.bulk.rda"
+    params:
+        tempfile = OUTDIR + "{sample}/{chrom}/phasing/summary.bulk.rda.tmp"        
+    shell:
+        "if test -e {params.tempfile}; then cp {params.tempfile} {output}; fi"
+        
+
+rule compare_onesample:
+    input: expand(OUTDIR + "{sample}/{chrom}/compare/summary.bulk.rda", chrom = CHROMOSOMES, sample = ["{sample}"])
+    output: OUTDIR + "{sample}/progress/all_chrom_compare.chk"
+    shell:
+        "touch {output}"
+
+        
+"""
+# ppower - runs all the scripts in output/110/power.bulk_job_scripts/
+- creates in folder output/110/1/jobs/1
+-rw-rw-r-- 1 asa asa   63 Nov  1 10:54 powers.bulk.rda
+-rw-rw-r-- 1 asa asa    0 Nov  1 10:54 powers.one.bulk.bed
+-rw-rw-r-- 1 asa asa    0 Nov  1 10:54 powers.two.bulk.bed
+# and creates a chkfile:
+output/110/progress/.power_bulk_1_85
+# varcall
+"""
+
+rule ppower:
+    input:
+        script = OUTDIR + "{sample}/power.bulk_job_scripts/{chrom}_{region_id}.sh",
+    output:
+        chkfile = OUTDIR + "{sample}/progress/.power_bulk_{chrom}_{region_id}",
+        pfile = OUTDIR + "{sample}/{chrom}/jobs/{region_id}/powers.two.bulk.bed"
+    shell:
+        "bash {input.script};"
+        "touch {output.chkfile}"    
+
+
+# make one summary checkfile for plink from all chromosomes.
+rule chrom_ppower:
+    input: dynamic(OUTDIR + "{sample}/{chrom}/jobs/{region_id}/powers.two.bulk.bed")
+    output: OUTDIR + "{sample}/progress/ppower_{chrom}.chk"
+    shell:
+        "touch {output}"
+
+
+# run plink with all chroms for one sample
+rule ppower_onesample:
+    input: expand(OUTDIR + "{sample}/progress/ppower_{chrom}.chk", chrom = CHROMOSOMES, sample = ["{sample}"])
+    output: OUTDIR + "{sample}/progress/all_chrom_ppower.chk"
+    shell:
+        "touch {output}"
+
+        
+        
+# final varcall
+# Creates subfolder:
+# dir <- paste("varcall_",bulk.config$name,sep="") -> sample/varcall_bulk/
+# final file in script is: powered.regions.bed
+# take as input all the chrom ppower outputs
+# plus the chkfiles for each chrom.
+
+rule varcall:
+    input:
+        sample_conf = OUTDIR + "{sample}/config.txt",
+	bulk_conf = OUTDIR + config["bulk"] + "/config.txt",        
+        sample_chkfile = OUTDIR + "{sample}/progress/all_chrom_ppower.chk",
+    output:
+        final_call = OUTDIR + "{sample}/varcall_" + config["bulk"] + "/powered.regions.bed"
+    shell:
+        "lira varcall -s {input.sample_conf} -b {input.bulk_conf}"
+
+
+        

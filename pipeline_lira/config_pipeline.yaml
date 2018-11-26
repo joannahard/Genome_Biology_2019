@@ -1,0 +1,50 @@
+# general settings
+
+
+
+
+########################
+# paths to files and ref info
+
+bamdir: /media/box2/Experiments/Joanna/LiRA/Tcell_bams/single_cells/
+resdir_fullpath: /media/box2/Experiments/Joanna/LiRA/lira_output/
+resdir: lira_output/
+vcf: /media/box2/Experiments/Joanna/LiRA/Tcell_bams/Tcells_GATK.vcf.gz
+
+genome: "/media/box2/reference_assemblies/bundle/2.8/b37/from_pall/human_g1k_v37_decoy.fasta"
+reference_name: "human_g1k_v37_decoy.fasta"
+reference_identifier: GRCh37
+individual: T-cell
+gender: male
+chromosomes: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
+
+
+#######################3
+# sample names:
+
+samples:
+ - 110
+ - 111
+ - 112
+ - 113
+ - 114
+ - 118
+ - 119
+ - 120
+ - 121
+ - 134
+ - 135
+ - 136
+ - 137
+ - 138
+ - 142
+ - 143
+ - 144
+ - 145  
+ 
+bulk: bulk
+
+
+
+  
+
