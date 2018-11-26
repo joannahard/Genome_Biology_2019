@@ -80,6 +80,11 @@ conbase_raw = pd.read_csv(args.conbase_file, sep= "\t")
 # reads in extra column "Unnamed: 25"
 conbase_raw = conbase_raw[conbase_raw.columns.drop(list(conbase_raw.filter(regex='Unnamed')))]    
 
+# also prints rows with CONFLICT - remove all such rows.
+has_conflict = conbase_raw.apply(lamda x: any(x.str.contains("CONFLICT")), axis=1)
+if any(has_conflict):
+    conbase_raw = conbase_raw.drop(conbase_raw.index[has_conflict])
+
 cb_sites = conbase_raw.CHROM.map(str) + ":" + conbase_raw.POS.map(str)
 conbase_raw.index = cb_sites
 #filter for sites in sim_data
@@ -89,12 +94,15 @@ conbase_raw = conbase_raw[conbase_raw.index.isin(sim_data.index)]
 cb_cells = [x.replace(":DP","") for x in list(conbase_raw.columns)[5:]]
 cb_cells = [x.replace("sim_","") for x in cb_cells]
 
+
 # convert to 1,0 or -1 (if non-informative)
 conbase = conbase_raw.iloc[:,5:]
 conbase.columns = cb_cells
 conbase.replace({r'HOMO-C.:.+': '0'}, regex=True, inplace = True)
 conbase.replace({r'HET-C.:.+': '1'}, regex=True, inplace = True)
 conbase.replace({r'NOT-INFORMATIVE:.+': '-1' }, regex=True, inplace = True)
+conbase.replace({r'ZERO-READS:0': '-1' }, regex=True, inplace = True)
+
 
 # convert to int or na
 conbase = conbase.astype(int)
