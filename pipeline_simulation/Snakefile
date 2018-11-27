@@ -6,8 +6,10 @@ include: "rules/simulate.smk"
 include: "rules/utils.smk"
 include: "rules/conbase.smk"
 include: "rules/monovar.smk"
-include: "rules/lira_allregions.smk"
-include: "rules/gatk_allregions.smk"
+#include: "rules/lira_allregions.smk"
+#include: "rules/gatk_allregions.smk"
+include: "rules/gatk.smk"
+include: "rules/lira.smk"
 include: "rules/summarize.smk"
 
 

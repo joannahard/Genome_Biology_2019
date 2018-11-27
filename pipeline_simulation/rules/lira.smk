@@ -55,6 +55,12 @@ rule symlink_bulk_bams:
         'ln -s "$(realpath {input.bam})" {output}'        
 
 
+rule symlink_lira_ref:
+    input: config["settings"]["reference_original"]
+    output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/ref/human_g1k_v37_decoy.fasta"
+    shell:
+        'ln -s {input} {output}'
+            
 
 rule lira_config:
     input:

@@ -73,8 +73,8 @@ lira:
   snakefile2: /media/box2/Experiments/Joanna/LiRA/snakefile_non_dynamic.smk
   gatk_conda: GATK
   gatk_settings: "--emitRefConfidence GVCF --variant_index_type LINEAR --variant_index_parameter 128000"
-  gatk_threads: 30
-  gatk_threads_use: 30 # need to submit with fewer cores than the rule permits to not get memory error!
+  gatk_threads: 5
+  gatk_threads_use: 5 # need to submit with fewer cores than the rule permits to not get memory error!
   snake_conda_path: /media/box2/Experiments/Joanna/bin/miniconda3/envs/snake2/bin
   lira_conda_path: /media/box2/Experiments/Joanna/bin/miniconda3/envs/LiRA/bin
   lira_dir: /media/box2/Experiments/Joanna/LiRA/LiRA_sim

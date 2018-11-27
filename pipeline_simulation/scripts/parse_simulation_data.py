@@ -135,14 +135,15 @@ if monovar.shape[0] > 0:
 # consider results as:
 # T-het - has correctly predicted genotype ALT when has Mut.
 # T-hom - has correctly predicted genotype REF when no Mut
-# F-het - has wrong genotype - has Mut but predicts REF
-# F-hom - has wrong genotype - has no Mut but predicts ALT
-# NA - has not predicted anything.
+# F-het - has wrong genotype - predicts ALT when no Mut
+# F-hom - has wrong genotype - predicts REF when has Mut
+# NA-het - has not predicted anything when has Mut
+# NA-hom - has not predicted anything when no Mut
 
-# also add on class - wEAL
+# also add on class - wEAL if the site is affected by alignment error
 
 def summarize(pred,sim_data):
-    data = pd.DataFrame(index=sim_data.index, columns = ['EAL', 'wADO', 'noADO', 'wMut','noMut','T-het','T-hom','F-het','F-hom','NA','T-het_wEAL','T-hom_wEAL','F-het_wEAL','F-hom_wEAL','NA_wEAL'])
+    data = pd.DataFrame(index=sim_data.index, columns = ['EAL', 'wADO', 'noADO', 'wMut','noMut','T-het','T-hom','F-het','F-hom','NA-het','NA-hom','T-het_wEAL','T-hom_wEAL','F-het_wEAL','F-hom_wEAL','NA-het_wEAL','NA-hom_wEAL'])
     data[data.columns[5:]] = 0
     data["EAL"] = sim_data["EAL"]
     mut_columns = [x + '_mut' for x in cb_cells]
@@ -162,14 +163,17 @@ def summarize(pred,sim_data):
                 result = ""
                 cb = pred.ix[site][cell]
                 if cb == -1:
-                    result = "NA"
+                    if mut:
+                        result = "NA-het"
+                    else:
+                        result = "NA-hom"
                 elif mut and cb == 1: # has mut and cb calls 1
                     result = "T-het"
-                elif mut and cb == 0:
-                    result = "F-het"
-                elif (not mut) and cb == 0:
+                elif mut and cb == 0: # has mut but cb calls 0
+                    result = "F-hom"
+                elif (not mut) and cb == 0: # no mutation 
                     result = "T-hom"
-                elif (not mut) and cb == 1:
+                elif (not mut) and cb == 1: # false positive, no mut but cb predicts mut. 
                     result = "F-het"
                 else:
                     print("Error! inconsistent predictions for " + site + " : " + cell)
@@ -179,7 +183,10 @@ def summarize(pred,sim_data):
                     print(sim_data.ix[site])
                     sys.exit(1)
             else:
-                result = "NA"
+                if mut:
+                    result = "NA-het"
+                else:
+                    result = "NA-hom"
             if sim_data.ix[site]["EAL"]:
                 result = result + "_wEAL"
             data.ix[site,result] += 1
