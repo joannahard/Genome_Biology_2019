@@ -96,7 +96,7 @@ rule compare:
     output:
         compare_sum = OUTDIR + "{sample}/{chrom}/compare/summary.bulk.rda",
     shell:
-        "lira compare -s {input.sample_conf} -b {input.bulk_conf} -m {wildcards.chrom};"
+        "lira compare -s {input.sample_conf} -b {input.bulk_conf} -m {wildcards.chrom} -o;"
 
 # cannot expand on output, so cannot track all the scripts in power.bulk_job_scripts
         
