@@ -123,7 +123,7 @@ class Locus:
         else:
             self.flanks[zyg].append(read)
 
-    def simulateLocus(self, T, SNV, EAL, fADO, locusCounts, ADOfreqs = True):
+    def simulateLocus(self, T, SNV, EAL, fADO, locusCounts, ADOfreqs):
         C = unnest(T)
         zygReads = { "l" : { c : self.zyg["hom"] for c in C } }
         flanks = { c : self.flanks["hom"] for c in C }
@@ -208,7 +208,7 @@ class ReadsDb:
         self.header = None
         self.fill(hetReadsFile, homReadsFile, Sitesfile, flanksize)
 
-    def simulate(self, T, f_SNV, f_EAL, f_ADO, locusCounts, freqs = True):
+    def simulate(self, T, f_SNV, f_EAL, f_ADO, locusCounts, freqs):
         L = range(len(self.loci))
         SNV = EAL = None
         # if freqs = true then sample that fraction fSNV/fEAL of loci, else
@@ -308,10 +308,13 @@ def main():
     outprefix = sys.argv[10]
 
     locusCounts = createLocusCounts(counts_file, counts_limit)
+    # For a fixed coverage of fixed_n use
+    #locusCounts = createFixedLocusCounts(fixed_n)
     
-    readsDB = ReadsDb(hetfile, homfile, sitesfile)
     
-    readsDB.simulateAndWriteToFile(popT, f_SNV, f_EAL, f_ADO, LocusCounts, outprefix)
+    readsDB = ReadsDb(hetfile, homfile, sitesfile, flanks=1000)
+    
+    readsDB.simulateAndWriteToFile(popT, f_SNV, f_EAL, f_ADO, LocusCounts, outprefix, flanks=True, freqs=False)
 
     readsDB.writeBulkToFile(outprefix)
 
@@ -356,6 +359,11 @@ def assignSubSample(L, f_EAL, f_SNV):
 #     sample = random.sample(L, k)
 #     return [ True if l in sample else False for l in L ]
 
+def createFixedLocusCounts(fixnumber):
+    locusCounts = { "Ref": { fixnumber:1 }, "Mut": { fixnumber:1 } }
+    return locusCounts
+    
+    
 def createLocusCounts(counts_file, limit):
     locusCounts = { "Ref": [], "Mut": [] }
     head = {}
