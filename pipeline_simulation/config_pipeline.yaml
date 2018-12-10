@@ -66,7 +66,7 @@ sccaller:
 
 parsing:
   path: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/parse_simulation_data.py
-  path_sum: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/summarize_simulation_stats.py  
+  path_sum: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/summarize_simulation_stats.py   path_sum2: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/summarize_simulation_stats_w_scc.py  
   monovar_dp: 5
   monovar_gq: 0
   monovar_nmut: 0
