@@ -23,6 +23,7 @@ parser = ArgumentParser(description='Calculate qc stats based on a gene expressi
 # [Required input]
 parser.add_argument('-m', '--monovar_file', metavar='monovar_file', help="Monovar vcf file", required=True)
 parser.add_argument('-c', '--conbase_file', metavar='conbase_file', help="Conbase tsv stats file", required=True)
+parser.add_argument('-x', '--sccaller_file', metavar='sccaller_file', help="SCCaller bed file", required=True)
 parser.add_argument('-s', '--sim_file', metavar='sim_file', help="Simulation stats json file", required=True)
 parser.add_argument('-o', '--outfile', metavar='outfile', help='Output file', required=True)
 # [Optional input]
@@ -30,6 +31,7 @@ parser.add_argument('--monovar_dp',metavar='monovar_dp', help="DP cutoff for par
 parser.add_argument('--monovar_gq',metavar='monovar_gq', help="GQ cutoff for parsing monovar", type =int, default = 0)
 parser.add_argument('--monovar_nmut',metavar='monovar_nmut', help="Required number of cells with called mutation in monovar", type =int, default = 2)
 args = parser.parse_args()
+
 
 #################################################3
 # check inputs:
@@ -75,18 +77,43 @@ def parse_monovar(stats):
 sim_data = pd.read_json(args.sim_file)
 sim_data = sim_data.T # transpose
 
-# extend the ado data and states data
+# OBS! Need to handle both new and old version of json file from simulation
+# Old has true/false per cell
+# new has l:Mut/l:Ref or lE:Mut, lE:Ref 
+
+# extend the ado data 
 ado = sim_data.ADO.apply(pd.Series)
-states = sim_data.states.apply(pd.Series)
+
+def check_ado(x):
+    if len(x) == 0:
+        return(False)
+    else:
+        return(True)
+
+# keep as is if old json, else:
+if not ado.columns[0] == "cell0":
+    ado.columns = "cell" + ado.columns.map(str) 
+    ado = ado.apply(lambda x: x.apply(check_ado), axis=1)
+
+
 
 # for each cell the state tells if the cell is mutated or not.
 # e.g.: cell0_state     {'Ref': 'C_T', 'Mut': 'T_G'}    True - has mut in clone1
 # cell10_state    {'Ref': 'C_G', 'Mut': 'T_G'}   False - has no mut in clone2
 # need to parse the dict and get assignment
 
+states = sim_data.states.apply(pd.Series)
 has_mut = states.apply(lambda x: x.apply(check_mut), axis=1)
 has_mut.columns = [str(col) + "_mut" for col in states.columns]
 sim_data = pd.concat([sim_data.drop(["ADO","states"], axis = 1), ado, has_mut], axis=1)
+
+######################################################################
+# read sccaller data, only has 1 or na, convert nas to -1
+
+scc = pd.read_csv(args.sccaller_file, sep=",", index_col = 0)
+scc = scc[scc.index.isin(sim_data.index)]
+scc.fillna(-1, inplace=True)
+scc = scc.astype(int)
 
 ######################################################################    
 # read conbase data
@@ -168,11 +195,11 @@ def summarize(pred,sim_data):
     mut_columns = [x + '_mut' for x in cb_cells]
 
     for site in data.index:
-        # count number of sites with ADO
+        # count number of cells with ADO
         vc = sim_data.ix[site][cb_cells].value_counts()
         data.ix[site,'wADO'] = vc[True] if True in vc else 0
         data.ix[site,'noADO'] = vc[False] if False in vc else 0
-        # count number of sites with a somatic mutation
+        # count number of cells with a somatic mutation
         vc = sim_data.ix[site][mut_columns].value_counts()
         data.ix[site,'wMut']= vc[True] if True in vc else 0
         data.ix[site,'noMut']= vc[False] if False in vc else 0
@@ -221,6 +248,7 @@ def summarize(pred,sim_data):
     counts['nEAL'] = data['EAL'].sum()
     return(data,counts)
 
+
 cb_data,cb_counts = summarize(conbase, sim_data)
 print("conbase")
 print(cb_counts)
@@ -229,8 +257,13 @@ mv_data, mv_counts = summarize(monovar, sim_data)
 print("monovar")
 print(mv_counts)
 
+scc_data, scc_counts = summarize(scc, sim_data)
+print("sccaller")
+print(scc_counts)
+
 out = pd.DataFrame()
 out["conbase"]=cb_counts
 out["monovar"]=mv_counts
+out["sccaller"]=scc_counts
 #print(out)
 out.to_csv(args.outfile)

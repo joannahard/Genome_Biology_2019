@@ -16,7 +16,7 @@ simulation:
   f_ADO: [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
   use_freq: False
   locus_count_limit: 20
-  fixed: False
+  fixed: True
   path: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/simulation/script
   sites_file: /media/box2/Experiments/Joanna/Simulering/data/final_sites/sites_for_simulation.tsv
   counts_file: /media/box2/Experiments/Joanna/Simulering/data/coverage-fil181108/coverage_in_gSNVs.txt
@@ -86,8 +86,8 @@ lira:
   snake_conda_path: /media/box2/Experiments/Joanna/bin/miniconda3/envs/snake2/bin
   lira_conda_path: /media/box2/Experiments/Joanna/bin/miniconda3/envs/LiRA/bin
   lira_dir: /media/box2/Experiments/Joanna/LiRA/LiRA_sim
-  split_threads: 11
-  varcall_threads: 11  
+  split_threads: 21
+  varcall_threads: 21  
   chromosomes: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,20,21,22]
   
 # no sites on chr19, need to remove that one!
