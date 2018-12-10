@@ -20,7 +20,7 @@
 \label{sec:loci-cells}
 
 We will generate reads for a set $L$ of loci in a set $C$ of cells. A
-locus in $L$ is defined as comprising two sites $S$ and $G$,close
+locus in $L$ is defined as comprising two sites $S$ and $G$, close
 enough to be covered by a (paired-end) read. The cells in $C$ are
 assumed to form a related population.
 
@@ -109,15 +109,15 @@ with the population structure.
 \label{sec:reads-sets}
 
 
-For each locus, $l$, we will work with four sets of reads covering a locus with $S$
-and $G$; The reads are derived from bulk-DNAseq of two different cell
-populations, one of which one is heterozygous for $S$ and the other is
-homozygous for $S$; both are heterozygous for $G$. The reads sets
-derived from each allele of the heterozygous population are called
-$hetRef$ and $hetMut$, respectively. Similarly, the reads sets from the
-homozygous population are called $hom1$ and $hom2$. The allele
-assignments and the $G$ and $S$ states are defined such that
-$het1=hom1=RR$.
+For each locus, $l$, we will work with four sets of reads covering a
+locus with $S$ and $G$; The reads are derived from bulk-DNAseq of two
+different cell populations, one of which one is heterozygous for $S$
+and the other is homozygous for $S$; both are heterozygous for
+$G$. The reads sets derived from each allele of the heterozygous
+population are called $hetRef$ and $hetMut$, respectively. Similarly,
+the reads sets from the homozygous population are called $homRef$ and
+$homMut$. We will, w.l.o.g., assume that the allele assignments and
+the $G$ and $S$ states are defined such that $hetRef=homMut=RR$.
 
 \subsection{Empirical Coverage distribution}
 \label{sec:cover-distr}
@@ -140,15 +140,15 @@ is determined by a variable $SNV$.  The locus $l'$ will be used to
 simulate possible alignments errors ($EAL$) when predicting the
 genotype of $l$.
 %
-In addition, we will simulate allelic dropouts ($ADO$) in $l$ and
-possibly $l'$, while empirical distributions are used for
+In addition, we will simulate dropout of reads ($DO$) in $l$ and
+ $l'$, while empirical distributions are used for
 allele-specific reads counts ($C$).
 
 The strategy for generating reads is to use predefined probabilities
-of $SNV$, $EAL$, $ADO$ and the empirical distribution of $C$ for $l$
+of $SNV$, $EAL$, $DO$ and the empirical distribution of $C$ for $l$
 to step-by-step determine a count distribution $f_R$ of number of
-reads to sample, over the possible reads sets
-$R=\{l_1(c), l_2(c), l'_1(c), l'_2(c)\} \subseteq \{het1, het2, hom1, hom2\}$
+reads to sample for cell $c\in C$, over the possible reads sets
+$R=\{l_1(c), l_2(c), l'_1(c), l'_2(c)\} \subseteq \{hetRef, hetMut, homRef, homMut\}$
 for $l$ in each cell $c$; notice that setting $f_R(h)=0$ for a reads
 set $h$ is equivalent to excluding sampling from $h$. We then sample
 reads following $f_R$ to simulate sequencing reads mapping to $l$.
@@ -163,8 +163,9 @@ an $sSNV$ in $S$ ($SNV=1$) or not ($SNV=0$). This can be done using
 either of two strategies:
 \begin{enumerate}
 \item The locus $l$ will have a sSNV at $S$ ($SNV=1$) with a
-  pre-defined probability $p_{SNV}$, which is i.i.d. over all loci.
-\item We set $f_{SNV}$, the frequency of sSNV loci in $L$, and then
+  pre-defined probability $p_{SNV}$, which is i.i.d. over all
+  loci. This strategy is biologically more realistic.
+\item We use a pre-defined $f_{SNV}$, the frequency of sSNV loci in $L$, and then
   sample random subset of size $k=f_{SNV}|L|$ loci from $L$ and set
   $SNV=1$ for these loci only. This allows more precise control of the
   observed frequency of sSNV in the generated data.
@@ -176,24 +177,24 @@ either of two strategies:
   \begin{enumerate}
   \item For all cells $c\in C$ initialize $l_i(c)$ and $l'_i(c) $ to homozygotic
     \begin{eqnarray*}
-      l_1(c) &=& hom1 \\
-      l_2(c) &=& hom2 \\
-      l'_1(c) &=& hom1 \\
-      l'_2(c) &=& hom2 
+      l_1(c) &=& homRef \\
+      l_2(c) &=& homMut \\
+      l'_1(c) &=& homRef \\
+      l'_2(c) &=& homMut 
     \end{eqnarray*}
   \item Sample a cell subset $V$ from the population tree
   \item For all cells $c\in V$, change $l(c)$ to heterozygotic
     \begin{eqnarray*}
-      l_1(c) &=& het1 \\
-      l_2(c) &=& het2 \\
+      l_1(c) &=& hetRef \\
+      l_2(c) &=& hetMut \\
     \end{eqnarray*}
   \end{enumerate}
 \item Otherwise ($SNV=0$), for all cells $c\in C$, set $l(c)$ to homozygotic and $L'(c)$ to heterozygotic
   \begin{eqnarray*}
-    l_1(c) &=& hom1 \\
-    l_2(c) &=& hom2 \\
-    l'_1(c) &=& het1 \\
-    l'_2(c) &=& het2 
+    l_1(c) &=& homRef \\
+    l_2(c) &=& homMut \\
+    l'_1(c) &=& hetRef \\
+    l'_2(c) &=& hetMut 
   \end{eqnarray*}
 \end{itemize}
 
@@ -235,36 +236,39 @@ set to (i.e., excluding sampling from $l'$):
 \end{itemize}
 \emph{Notice that presence of alignment errors is done on the \emph{population level}.}
 
-\subsection{Allelic dropout}
+\subsection{Read dropouts}
 \label{sec:allelic-dropout}
 
-Presence of ADO in a locus is modeled on a per-cell basis and only on
-the alleles of $l$ (not on $l'$). Hence, we define
-$R_{ADO} = \{l_1,l_2\}$. 
+Presence of DO in a locus is modeled on a per-cell basis.
+%and both on the alleles of $l$ and $l'$. Hence, we define
+$R_{DO} = \{l_1,l_2, l'_1, l'_2\}$. 
 
-Also, the presence of ADO in $c$ can be modeled in two ways:
+Also, the presence of DO in $c$ can be modeled in two ways:
 \begin{enumerate}
-\item For each cell $c \in C$ and for each allele $i\in R_{ADO}$, set
-  $f_R(i)=0$ with a pre-defined probability $p_{ADO}$, which is
+\item For each cell $c \in C$ and for each allele $i\in R_{DO} = \{l_1,l_2, l'_1, l'_2\}$, set
+  $f_R(i)=0$ with a pre-defined probability $p_{DO}$, which is
   i.i.d. over all cells and alleles.
-\item Using a pre-defined frequency of ADO in
-  $C$$f_{ADO}$, we sample a random subset,
-  $C_{ADO}$, of $k=f_{ADO}|C|$ cells from $C$. For each $c\in
-  C_{ADO}$, we randomly sample an allele $l_{ADO}$ from
-  $R_{ADO}$ and set $f_R(l_{ADO})=0$.
+\item Using a pre-defined frequency of DO in
+  $C$$f_{DO}$, we sample a random subset, $C_{DO}$, of
+  $k=f_{DO}|C|$ cells from $C$. For each $c\in
+  C_{DO}$, we randomly sample an allele
+  $l_{DO}$ from $R_{DO}=\{l_1,l_2\}$ and set
+  $f_R(l_{DO})=0$.
+
+  \emph{Notice that we in this case model $DO$ only on
+    $l$; the reasoning for this is to simplify siulation while focusing
+    on the problematic cases for variant calling.}
 \end{enumerate}
 
-\emp{Notice that the reasoning for modeling $ADO$ only on
-  $l$ is, again, to focus on the problematic cases for variant
-  calling. However, if desired, it is possible to, e.g., set $R_{ADO}
-  = \{l_1,l_2, l'_1, l'_2\}$.}
 
 \subsection{Generating COV, the number of reads per allele}
 \label{sec:gener-numb-reads}
 
 
-First we draw the number of reads $COV(i)$ for each allele $i\in R$
-i.i.d. from an empirical allele-specific coverage distribution $d_{COV}$.
+We sample the number of reads $COV(i)$ for each allele $i\in R$
+i.i.d. from an empirical allele-specific coverage distribution
+$d_{COV}$. Typically, we set a minimum value for COV (e.g., 10) to
+avoid generating loci that will be filtered due to low coverage.
 
 We then set
 
@@ -286,13 +290,16 @@ reads mapping to $l$ in $c$.
 \item Initiate $r_{l,c}=\emptyset$.
 \item for $i\in \{l_1(c),l_2(c),l'_1(c),l'_2(c)\}$
   \begin{enumerate}
-  \item Repeat $f_R(i)$ times
+  \item Repeat the following $f_R(i)$ times
     \begin{enumerate}
     \item Draw a read, $r$, from $i$ and add it to $r_{l,c}$, i.e., $r_{l,c}=r_{l,c}\cup \{r\}$.
     \end{enumerate}
   \end{enumerate}
 \end{enumerate}
 
+For each $c\in C$, the set of reads, $\{r_{*,c}$, is saved to a separate bam-file.
+
+This concludes the description of the generative model and algorithm.
 
 \end{document}
 

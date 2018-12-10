@@ -3,17 +3,21 @@ rule make_coverage_pickle:
     input: counts_file = config["simulation"]["counts_file"]
     output: pickle = config["simulation"]["lc_pickle"]           
     params:
-        limit = 20,
-        path = config["simulation"]["path"]
+        limit = config["simulation"]["locus_count_limit"],
+        path = config["simulation"]["path"],
+        fixedCoverage = config["simulation"]["fixed"]
     run:
         import sys, pickle
         sys.path.insert(0, params.path)
-        from ReadsDb import createLocusCounts
 
-        locusCounts = createLocusCounts(input.counts_file, params.limit)
+        if params.fixedCoverage == True:
+            from ReadsDb import createFixedLocusCounts                    
+            locusCounts = createFixedLocusCounts(30)
+        else:
+            from ReadsDb import createLocusCounts        
+            locusCounts = createLocusCounts(input.counts_file, params.limit)
         with open(output.pickle, 'wb') as f:
             pickle.dump(locusCounts, f, protocol=0)
-
 
 # Skip simulation of bulk and instead extract regions from "homf"? May be needed if we also run lira
 rule simulate_bulk:

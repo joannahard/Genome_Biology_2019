@@ -1,6 +1,21 @@
 import pandas as pd
 import os, sys, math
 
+# Will take ouput from conbase + monovar for one simulation round and calculate per site in each cell:
+# 
+# T-het - has correctly predicted genotype ALT when has Mut.
+# T-hom - has correctly predicted genotype REF when no Mut
+# F-het - has wrong genotype - predicts ALT when no Mut
+# F-hom - has wrong genotype - predicts REF when has Mut
+# NA-het - has not predicted anything when has Mut
+# NA-hom - has not predicted anything when no Mut
+# also add on class - wEAL if the site is affected by alignment error
+
+# also, per site across all cells:
+# using cutoffs 2,3,5,10
+# detected in >=CUT cells, not deteceted in CUT cells
+# separate for sites with/without EAL
+
 
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Calculate qc stats based on a gene expression matrix')
@@ -139,24 +154,30 @@ if monovar.shape[0] > 0:
 # F-hom - has wrong genotype - predicts REF when has Mut
 # NA-het - has not predicted anything when has Mut
 # NA-hom - has not predicted anything when no Mut
-
 # also add on class - wEAL if the site is affected by alignment error
 
+sCUTS =[2,3,5,10]
+site_def = ["TP","FP","TN","FN"]
+colnames_sites = [str(y) + str(x) for x in sCUTS for y in site_def]
+# count first, number of detected mutations w/ w/o eal.
+
 def summarize(pred,sim_data):
-    data = pd.DataFrame(index=sim_data.index, columns = ['EAL', 'wADO', 'noADO', 'wMut','noMut','T-het','T-hom','F-het','F-hom','NA-het','NA-hom','T-het_wEAL','T-hom_wEAL','F-het_wEAL','F-hom_wEAL','NA-het_wEAL','NA-hom_wEAL'])
+    data = pd.DataFrame(index=sim_data.index, columns = ['EAL', 'wADO', 'noADO', 'wMut','noMut','T-het','T-hom','F-het','F-hom','NA-het','NA-hom','T-het_wEAL','T-hom_wEAL','F-het_wEAL','F-hom_wEAL','NA-het_wEAL','NA-hom_wEAL', 'detMut','detMut_wEAL'] )
     data[data.columns[5:]] = 0
     data["EAL"] = sim_data["EAL"]
     mut_columns = [x + '_mut' for x in cb_cells]
 
     for site in data.index:
+        # count number of sites with ADO
         vc = sim_data.ix[site][cb_cells].value_counts()
         data.ix[site,'wADO'] = vc[True] if True in vc else 0
         data.ix[site,'noADO'] = vc[False] if False in vc else 0
-    
+        # count number of sites with a somatic mutation
         vc = sim_data.ix[site][mut_columns].value_counts()
         data.ix[site,'wMut']= vc[True] if True in vc else 0
         data.ix[site,'noMut']= vc[False] if False in vc else 0
 
+        # check each site in each cell
         for cell in cb_cells:
             mut = sim_data.ix[site][cell + "_mut"]  # mut=True has mut, mut=False no mut
             if site in pred.index:
@@ -190,20 +211,23 @@ def summarize(pred,sim_data):
             if sim_data.ix[site]["EAL"]:
                 result = result + "_wEAL"
             data.ix[site,result] += 1
-    #counts = data[data.columns[5:]].apply(pd.Series.value_counts, axis=0)
-    #counts.fillna(0, inplace = True)
-    #counts = counts.astype(int)
-    #counts.sort_index(axis=1, inplace=True)
-    counts = data[data.columns[5:]].sum()
+            
+    data['detMut'] = data['T-het'] + data['F-het']
+    data['detMut_wEAL'] = data['T-het_wEAL'] + data['F-het_wEAL']    
+    counts = data[data.columns[5:17]].sum()
+    for cut in sCUTS:
+        counts['Mut_' + str(cut)] = data['detMut'][data['detMut']>=cut].count()
+        counts['Mut_' + str(cut) + '_wEAL'] = data['detMut_wEAL'][data['detMut_wEAL']>=cut].count()
+    counts['nEAL'] = data['EAL'].sum()
     return(data,counts)
 
 cb_data,cb_counts = summarize(conbase, sim_data)
-#print("conbase")
-#print(cb_counts)
+print("conbase")
+print(cb_counts)
 
 mv_data, mv_counts = summarize(monovar, sim_data)
-#print("monovar")
-#print(mv_counts)
+print("monovar")
+print(mv_counts)
 
 out = pd.DataFrame()
 out["conbase"]=cb_counts

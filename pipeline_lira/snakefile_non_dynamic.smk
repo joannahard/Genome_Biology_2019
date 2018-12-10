@@ -200,7 +200,7 @@ rule varcall:
     output:
         final_call = OUTDIR + "{sample}/varcall_" + config["bulk"] + "/powered.regions.bed"
     shell:
-        "lira varcall -s {input.sample_conf} -b {input.bulk_conf}"
+        "lira varcall -s {input.sample_conf} -b {input.bulk_conf} -o"
 
 
         

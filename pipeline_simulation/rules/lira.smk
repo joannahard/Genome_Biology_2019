@@ -69,7 +69,8 @@ rule lira_config:
         bulk_bam = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/bams/bulk.bam",
         bulk_bai = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/bams/bulk.bai",
         vcf_file = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/vcf/all.vcf.gz",
-        vcf_index = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/vcf/all.vcf.gz.tbi",        
+        vcf_index = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/vcf/all.vcf.gz.tbi",
+        ref = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/ref/human_g1k_v37_decoy.fasta",
         config = config["lira"]["config_template"]
     output:
         config = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/config_pipeline.yaml"

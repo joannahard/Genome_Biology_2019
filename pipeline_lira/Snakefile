@@ -81,7 +81,7 @@ rule split:
         phasing = OUTDIR + "{sample}/{chrom}/phasing/phasing-output.vcf.gz",
         tempfile = OUTDIR + "{sample}/{chrom}/phasing/phasing-output.vcf.gz.tmp"
     shell:
-        "lira split -c {input} -m {wildcards.chrom};"
+        "lira split -c {input} -m {wildcards.chrom} -o;"
         "cp {params.phasing} {params.tempfile}"
 
 
