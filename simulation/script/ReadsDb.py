@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
+## This file implements the simlation model/algorithm described in ../doc/sim.text/pdf
+
+
 import pysam, sys, random, math, json
 from collections import Counter, OrderedDict
+
 
 class Reads:
     def __init__(self):
