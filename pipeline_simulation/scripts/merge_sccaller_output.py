@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os, sys, math
 
 # Will take ouput from sccaller for all cells with one simulation setting and parse into one matrix.
@@ -24,10 +25,14 @@ all = pd.DataFrame()
 
 for file in args.infiles:
     cell = os.path.split(file)[1].replace(".","_").split("_")[1]
-    d = pd.read_csv(file, sep="\t", header=None)
-    sites = d[0].map(str) + ":" + d[1].map(str)
-    d2 = pd.DataFrame(index=sites)
-    d2[cell] = 1
-    all = pd.concat([all,d2], axis=1)
-
+    file_size = os.path.getsize(file)
+    if file_size > 0:
+        d = pd.read_csv(file, sep="\t", header=None)
+        sites = d[0].map(str) + ":" + d[1].map(str)
+        d2 = pd.DataFrame(index=sites)
+        d2[cell] = 1
+        all = pd.concat([all,d2], axis=1)
+    else: # if empty file, add a column with NaN
+        all[cell] = np.nan
+        
 all.to_csv(args.outfile, sep=",")

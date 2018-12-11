@@ -56,3 +56,17 @@ rule parse_data_w_scc:
         "python3 {params.path} -m {input.monovar} -c {input.conbase} -s {input.sim} -x {input.scc} -o {output} --monovar_gq {params.gq} --monovar_dp {params.dp} --monovar_nmut {params.nmut}"
 
         
+rule parse_data_w_lira:
+    input:
+        monovar = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/monovar/monovar_output.vcf",
+        conbase = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/conbase/conbase_results.tsv",
+        lira = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/all_cell_stats.csv",
+        sim =   "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/bams/sim_genVals.json"
+    output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/simulation_stats_w_lira.csv"
+    params:
+        dp = config["parsing"]["monovar_dp"],
+        gq = config["parsing"]["monovar_gq"],
+        nmut = config["parsing"]["monovar_nmut"],
+        path = config["parsing"]["path_w_lira"]
+    shell:
+        "python3 {params.path} -m {input.monovar} -c {input.conbase} -s {input.sim} -l {input.lira} -o {output} --monovar_gq {params.gq} --monovar_dp {params.dp} --monovar_nmut {params.nmut}"

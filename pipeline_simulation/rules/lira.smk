@@ -186,3 +186,9 @@ rule lira_one_sim:
         "touch {output.chkfile}"
 
 
+rule lira_merge:
+    input: expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/lira/lira_output/cell{nn}/varcall_bulk/out.vcf.gz",nn=range(config["simulation"]["ncell"]))
+    output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/all_cell_stats.csv"
+    params: script = config["lira"]["merge_script"]
+    shell:
+        'python {params.script} -o {output} -i {input}'

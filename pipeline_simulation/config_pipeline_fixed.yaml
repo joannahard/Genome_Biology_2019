@@ -66,6 +66,7 @@ sccaller:
 
 parsing:
   path: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/parse_simulation_data.py
+  path_w_lira: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/parse_simulation_data_w_lira.py
   path_sum: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/summarize_simulation_stats.py
   path_sum2: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/summarize_simulation_stats_w_scc.py    
   monovar_dp: 5
@@ -90,5 +91,5 @@ lira:
   split_threads: 21
   varcall_threads: 21  
   chromosomes: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,20,21,22]
-  
+  merge_script: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/merge_lira_output.py  
 # no sites on chr19, need to remove that one!

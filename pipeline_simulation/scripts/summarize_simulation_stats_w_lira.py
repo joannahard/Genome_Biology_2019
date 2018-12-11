@@ -30,10 +30,10 @@ for infile in args.infiles:
     ado = float(settings[2].replace("ado",""))        
     data.loc["fSNV"] = [snv,snv,snv]
     data.loc["fEAL"] = [eal,eal,eal]        
-    data.loc["fADO"] = [ado,ado,ado]
+    data.loc["fADO"] = [ado,ado,eal]
     outCB[sim_name] = data["conbase"]
     outMV[sim_name] = data["monovar"]
-    outSCC[sim_name] = data["sccaller"]    
+    outSCC[sim_name] = data["lira"]    
 
 #print(out)
 outCB.to_csv(args.outprefix + "_conbase.csv")
@@ -42,7 +42,7 @@ print("Conbase stats written to "+ args.outprefix + "_conbase.csv")
 outMV.to_csv(args.outprefix + "_monovar.csv")
 print("Monovar stats written to "+ args.outprefix + "_monovar.csv")
 
-outSCC.to_csv(args.outprefix + "_sccaller.csv")
-print("SCCaller stats written to "+ args.outprefix + "_sccaller.csv")
+outSCC.to_csv(args.outprefix + "_lira.csv")
+print("Lira stats written to "+ args.outprefix + "_lira.csv")
 
 
