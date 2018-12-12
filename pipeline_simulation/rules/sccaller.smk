@@ -82,14 +82,16 @@ rule sccaller_filter:
             
                 
 rule sccaller_allcells:
-    input: expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/sccaller/output/sim_cell{nn}.sincell_filtered0.01.bed",nn=range(config["simulation"]["ncell"]))
+    input:
+        eta01 = expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/sccaller/output/sim_cell{nn}.sincell_filtered0.01.bed",nn=range(config["simulation"]["ncell"])),
+        eta05 = expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/sccaller/output/sim_cell{nn}.sincell_filtered0.05.bed",nn=range(config["simulation"]["ncell"]))        
     output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/all_cells.chk"
     shell:
         'touch {output}'
 
 rule sccaller_merge:
-    input: expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/sccaller/output/sim_cell{nn}.sincell_filtered0.01.bed",nn=range(config["simulation"]["ncell"]))
-    output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/all_cells_stats.csv"
+    input: expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/sccaller/output/sim_cell{nn}.sincell_filtered{{eta}}.bed",nn=range(config["simulation"]["ncell"]))
+    output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/all_cells_stats.{eta}.csv"
     params: script = config["sccaller"]["merge_script"]
     shell:
         'python {params.script} -o {output} -i {input}'

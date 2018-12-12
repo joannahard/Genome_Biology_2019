@@ -23,6 +23,19 @@ rule merge_stats_w_scc:
     shell:
         "python3 {params.path} -o {params.outprefix} -i {input}"
 
+rule merge_stats_all:
+    input: expand( "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/simulation_stats_all.csv", f_SNV = config["simulation"]["f_SNV"],f_EAL = config["simulation"]["f_EAL"],f_ADO = config["simulation"]["f_ADO"])
+    output:
+        cb = "data/stats/stats_all4_sim_conbase.csv",
+        mv = "data/stats/stats_all4_sim_monovar.csv",
+        lira = "data/stats/stats_all4_sim_lira.csv",        
+        scc = "data/stats/stats_all4_sim_sccaller.csv"
+    params:
+        path = config["parsing"]["path_sum_all"],
+        outprefix = "data/stats/stats_all4_sim"
+    shell:
+        "python3 {params.path} -o {params.outprefix} -i {input}"
+
         
 rule parse_data:
     input:
@@ -44,7 +57,7 @@ rule parse_data_w_scc:
     input:
         monovar = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/monovar/monovar_output.vcf",
         conbase = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/conbase/conbase_results.tsv",
-        scc = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/all_cells_stats.csv",        
+        scc = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/all_cells_stats.0.05.csv",        
         sim =   "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/bams/sim_genVals.json"
     output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/simulation_stats_v2.csv"
     params:
@@ -70,3 +83,23 @@ rule parse_data_w_lira:
         path = config["parsing"]["path_w_lira"]
     shell:
         "python3 {params.path} -m {input.monovar} -c {input.conbase} -s {input.sim} -l {input.lira} -o {output} --monovar_gq {params.gq} --monovar_dp {params.dp} --monovar_nmut {params.nmut}"
+
+
+
+rule parse_data_all:
+    input:
+        monovar = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/monovar/monovar_output.vcf",
+        conbase = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/conbase/conbase_results.tsv",
+        lira = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/all_cell_stats.csv",
+	scc = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/all_cells_stats.0.05.csv",        
+        sim =   "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/bams/sim_genVals.json"
+    output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/simulation_stats_all.csv"
+    params:
+        dp = config["parsing"]["monovar_dp"],
+        gq = config["parsing"]["monovar_gq"],
+        nmut = config["parsing"]["monovar_nmut"],
+        path = config["parsing"]["path_all"]
+    shell:
+        "python3 {params.path} -m {input.monovar} -c {input.conbase} -s {input.sim} -l {input.lira} -x {input.scc} -o {output} --monovar_gq {params.gq} --monovar_dp {params.dp} --monovar_nmut {params.nmut}"        
+
+        
