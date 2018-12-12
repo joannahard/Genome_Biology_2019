@@ -89,7 +89,7 @@ lira:
   lira_conda_path: /media/box2/Experiments/Joanna/bin/miniconda3/envs/LiRA/bin
   lira_dir: /media/box2/Experiments/Joanna/LiRA/LiRA_sim
   split_threads: 11
-  varcall_threads: 11  
+  varcall_threads: 1
   chromosomes: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,20,21,22]
   merge_script: /media/box2/Experiments/Joanna/Snake_analys/j_frisen_1602/pipeline_simulation/scripts/merge_lira_output.py
 

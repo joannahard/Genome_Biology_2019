@@ -46,6 +46,11 @@ rule all:
            
            
 
-        
-        
+
+
+## Extra to run plink chk before anything else is run:
+PLINK_TARGETS = expand( "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/bulk/progress/all_chrom_plink.chk", f_SNV = config["simulation"]["f_SNV"],f_EAL = config["simulation"]["f_EAL"],f_ADO = config["simulation"]["f_ADO"])
+
+rule all_plink_bulk:
+    input: PLINK_TARGETS
 

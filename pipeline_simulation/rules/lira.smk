@@ -142,7 +142,38 @@ rule lira_split:
 # obs! have relative paths to chkfile & logfile, need to be relative to lira_output
 
 
+# make an extra rule that makes sure that plink is run for the bulk sample before running varcall for each cell - otherwise conflicts when multiple varcall jobs are running plink for the bulk.
+rule lira_bulk_plink:
+    input:
+        config = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/config_pipeline.yaml",
+        chkfile_bulk = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/bulk/split_all_chrom.chk"
+    output:
+        plink_file = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/bulk/progress/plink_{chrom}.chk"
+    params:
+        cwd = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/",
+        snakefile = config["lira"]["snakefile2"],
+        snake_conda_path = config["lira"]["snake_conda_path"],
+        lira_conda_path = config["lira"]["lira_conda_path"],
+        lira_dir = config["lira"]["lira_dir"]
+    log:
+        logfile = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/logs/plink_bulk{chrom}.log"
+    run:
+       	pfile = output.plink_file.replace(params.cwd,"")
+	logfile = log.logfile.replace(params.cwd,"")
+	cmd = "cd " + params.cwd + ";"
+	cmd = cmd + "export PATH=" + params.lira_conda_path + ":" + params.snake_conda_path + ":$PATH:" + params.lira_dir + ";"
+	cmd = cmd + "export LIRA_DIR=" + params.lira_dir + ";"
+        cmd = cmd + "snakemake -p -j " + str(threads) + " --snakefile " + params.snakefile + " " +  pfile + " > "  + logfile + " 2>&1;"
+        print(cmd)
+	shell(cmd)
 
+# and a summary rule for all the chroms, creates file lira_output/bulk/progress/all_chrom_plink.chk that is input to lira_varcall rule.
+rule lira_bulk_plink_chk:
+    input: expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/lira/lira_output/bulk/progress/plink_{chrom}.chk", chrom=config['lira']["chromosomes"])
+    output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/bulk/progress/all_chrom_plink.chk"
+    shell:
+        'touch {output}'
+        
 #export PATH=/media/box2/Experiments/Joanna/bin/miniconda3/envs/LiRA/bin:/media/box2/Experiments/Joanna/bin/miniconda3/envs/snake2/bin:$PATH
 #export PATH=$PATH:/media/box2/Experiments/Joanna/LiRA/LiRA
 #export LIRA_DIR=/media/box2/Experiments/Joanna/LiRA/LiRA
@@ -152,7 +183,7 @@ rule lira_varcall:
     input:
         config = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/config_pipeline.yaml",
 	chkfile = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/cell{nn}/split_all_chrom.chk",
-	chkfile_bulk = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/bulk/split_all_chrom.chk"        
+	chkfile_bulk = ancient("data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/bulk/progress/all_chrom_plink.chk")
     output:
         pfile = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/cell{nn}/varcall_bulk/powered.regions.bed"
     params:
