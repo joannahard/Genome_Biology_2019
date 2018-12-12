@@ -30,7 +30,7 @@ for infile in args.infiles:
     ado = float(settings[2].replace("ado",""))        
     data.loc["fSNV"] = [snv,snv,snv]
     data.loc["fEAL"] = [eal,eal,eal]        
-    data.loc["fADO"] = [ado,ado,eal]
+    data.loc["fADO"] = [ado,ado,ado]
     outCB[sim_name] = data["conbase"]
     outMV[sim_name] = data["monovar"]
     outSCC[sim_name] = data["lira"]    
