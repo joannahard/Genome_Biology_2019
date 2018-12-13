@@ -3,8 +3,8 @@
 
 rule make_conbase_bamlist:
     input:
-        bamfiles = expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/bams/sim_cell{nn}.bam",nn=range(config["simulation"]["ncell"])),
-        baifiles = expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/bams/sim_cell{nn}.bai",nn=range(config["simulation"]["ncell"])),        
+        bamfiles = expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/bams/sim_cell{nn}_sorted.bam",nn=range(config["simulation"]["ncell"])),
+        baifiles = expand("data/sim_snv{{f_SNV}}_eal{{f_EAL}}_ado{{f_ADO}}/bams/sim_cell{nn}_sorted.bai",nn=range(config["simulation"]["ncell"])),        
         bulk_bam = "data/common/homo_bulk.bam",
         bulk_bai = "data/common/homo_bulk.bai"        
     output:

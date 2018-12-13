@@ -26,12 +26,14 @@ LIRA_TARGETS = expand( "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_outp
 SCC_TARGETS = expand("data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/all_cells.chk", f_SNV = config["simulation"]["f_SNV"],f_EAL = config["simulation"]["f_EAL"],f_ADO = config["simulation"]["f_ADO"])
 
 rule all_sim:
-    input:
-        sim_data = SIM_TARGETS,
+    input: SIM_TARGETS
         
 rule all_conbase:
     input: CONBASE_TARGETS
 
+rule all_monovar:
+    input: MONOVAR_TARGETS
+           
 rule all_lira:
     input: LIRA_TARGETS
 
