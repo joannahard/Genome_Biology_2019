@@ -3,11 +3,12 @@ rule mpileup:
         bam = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/bams/sim_cell{nn}_sorted.bam",
         bai = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/bams/sim_cell{nn}_sorted.bai",
         ref = config["settings"]["reference"]
-    output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/mpileup/sim_cell{nn}.bam.mpileup"
+    output: temp("data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/mpileup/sim_cell{nn}.bam.mpileup")
     shell:
         'samtools mpileup -C50 -Osf {input.ref} {input.bam} > {output}'
 
-
+# make mpileup file temp - takes a lot of space...
+        
 rule sccaller_header:
     input: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/mpileup/sim_cell{nn}.bam.mpileup"
     output: "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/output/sim_cell{nn}.hsnp.bed"

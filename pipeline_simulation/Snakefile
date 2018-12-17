@@ -22,6 +22,7 @@ CONBASE_TARGETS = expand( "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/conbase/con
 MONOVAR_TARGETS = expand( "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/monovar/monovar_output.vcf", f_SNV = config["simulation"]["f_SNV"],f_EAL = config["simulation"]["f_EAL"],f_ADO = config["simulation"]["f_ADO"])
 
 LIRA_TARGETS = expand( "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/all_cells.chk", f_SNV = config["simulation"]["f_SNV"],f_EAL = config["simulation"]["f_EAL"],f_ADO = config["simulation"]["f_ADO"])
+GATK_TARGETS = expand( "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/vcf/all.vcf.gz.tbi", f_SNV = config["simulation"]["f_SNV"],f_EAL = config["simulation"]["f_EAL"],f_ADO = config["simulation"]["f_ADO"])
 
 SCC_TARGETS = expand("data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/sccaller/all_cells.chk", f_SNV = config["simulation"]["f_SNV"],f_EAL = config["simulation"]["f_EAL"],f_ADO = config["simulation"]["f_ADO"])
 
@@ -37,6 +38,9 @@ rule all_monovar:
 rule all_lira:
     input: LIRA_TARGETS
 
+rule all_gatk:
+    input: GATK_TARGETS
+           
 rule all_sccaller:
     input: SCC_TARGETS
 

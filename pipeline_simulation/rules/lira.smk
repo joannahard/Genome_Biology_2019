@@ -37,13 +37,11 @@ rule readgroup_lira_bulk_bam:
 rule get_lira_bulk_regions:
     input:
         bam = config["simulation"]["homf"],
+        bed = "data/common/interval_list_for_gatk.bed"        
     output:
         bam = "data/common/lira_bulk_wrong_rg.bam",
-    params:
-        bed = "data/common/interval_list_for_gatk.bed"
     shell:
-        'samtools view -b -L {params.bed} {input.bam} > {output.bam}' 
-
+        'samtools view -b -L {input.bed} {input.bam} > {output.bam}' 
         
 
 rule symlink_bulk_bams:
@@ -185,7 +183,8 @@ rule lira_varcall:
 	chkfile = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/cell{nn}/split_all_chrom.chk",
 	chkfile_bulk = ancient("data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/bulk/progress/all_chrom_plink.chk")
     output:
-        pfile = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/cell{nn}/varcall_bulk/powered.regions.bed"
+        pfile = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/cell{nn}/varcall_bulk/powered.regions.bed",
+        vcf = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/lira_output/cell{nn}/varcall_bulk/out.vcf.gz"        
     params:
         cwd = "data/sim_snv{f_SNV}_eal{f_EAL}_ado{f_ADO}/lira/",
         snakefile = config["lira"]["snakefile2"],
