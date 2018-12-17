@@ -4,7 +4,17 @@ All rules files and snakefiles have a symlink in the directory where the analysi
 
 To run the pipeline, the conda "snake2" has all requirements.
 
+# run full pipeline to merged stats matrix:
 source activate snake2
-snakemake -p -j 50 all
+snakemake -p -j 80 merge_stats_all
 
-The all rule will exectute all the steps for conbase and monovar. Lira is not included an ran for all different simulation settings. 
+
+# some target rules:
+
+- all - will exectute all the steps for conbase,sccaller and monovar. Lira is not included in the all rule.
+- all_conbase - run all steps of conbase
+- all_gatk - preprocessing with gatk for lira
+- all_sim - create all simulation datasets.
+- all_lira - run all steps of lira
+- all_monovar
+- all_sccaller
