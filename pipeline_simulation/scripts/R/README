@@ -1,0 +1,14 @@
+# Scripts for plotting stats from simulation
+
+File plot_simulation_stats_each_ds.R - contains a function for plotting each dataset separately and creating an Rdata file with all stats.
+Was run with:
+plot_simulation_stats_each_ds("lira",flat=T)
+plot_simulation_stats_each_ds("conbase",flat=T)
+plot_simulation_stats_each_ds("conbase",flat=F)
+Etc for all datasets and both flat=T & flat=F
+
+# merged plots were created with script:
+plot_simulation_stats_merged.R
+
+
+OBS! all folders are hardcoded in the scripts, output from the pipeline with flat_dp and sim_dp were copied to separate folders. 
