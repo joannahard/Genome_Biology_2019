@@ -1,4 +1,4 @@
-#Introduction
+# Introduction
 
 This repository aims to provide the tools to replicate bioinformatics
 results obtained in the NBIS long-term support project J_Frisen_1602.
@@ -6,9 +6,9 @@ These tools is set to work in a Unix-like operative system (Linux,
 Unix, MacOSX, cygwin, etc.) and you will need to work from a
 Unix-terminal.
 
-#Results
+# Results
 
-##Snakemake proceudre for Assembly
+## Snakemake proceudre for Assembly
 
 ### The conda environment
 
@@ -27,7 +27,7 @@ bash CONDAME.sh
 
 sets up the conda environment 'j_frisen_1602' with the required
 programs.
-OBS! GATK cannot be installed completely from bioconda since it requires
+NB! GATK cannot be installed completely from bioconda since it requires
 a license. Therefore you have to download GATK (v3.6 or which ever is
 specified in requirements.txt) from the website. After activating the
 conda environment you need to run gatk-register e.g.:
@@ -44,6 +44,12 @@ environment by
 
 source deactivate j_frisen_1602
 
-and you will return t your standard terminal environment.
+and you will return to your standard terminal environment.
 
-### The snakemake file
+### The snakemake files
+
+There are three separate pipelines:
+
+- The main pipeline, defined in `Snakefile` in the main/base directory perform read-mapping, QC and initial variant-calling of sc data.
+- The second pipeline, defined in `pipeline_lira/Snakefile` describes how LiRA analyses were run
+- The last pipeline, defined in `pipeline_simulation/Snakefile` performs a simulation study, generating synthetic sc data based on observed bulk data, runs Conbase, Monovar, LiRA, and SCcaller variant calling on this data and summarizes the results. NB! The variant calling programs are not installed automatically and their location needs to be given in the file `config_pipeline.yaml`.
