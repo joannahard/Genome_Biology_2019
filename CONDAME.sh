@@ -1,11 +1,13 @@
 #!/bin/bash
 
-conda config --add channels pkgw
-conda config --add channels bcbio
-conda config --add channels r
-conda config --add channels conda-forge
-conda config --add channels bioconda
-conda config --add channels defaults
+# conda config --add channels pkgw
+# conda config --add channels bcbio
+# conda config --add channels r
+# conda config --add channels conda-forge
+# conda config --add channels bioconda
+# conda config --add channels defaults
+
+CHANNELS="-c defaults -c bioconda -c conda-forge -c r -c bcbio -c pkgw"
 
 USROPT=""
 if [[ -n $1 ]]; then
@@ -15,10 +17,10 @@ fi
 exists=`conda info --envs|grep -v "#"|awk '{if($1=="j_frisen_1602")print 0}'`
 if test "$exists" = "0"; then
     echo "Updating conda environment j_frisen_1602";
-    conda install $USROPT -n j_frisen_1602 --file requirements.txt;
+    conda install $USROPT -n j_frisen_1602 --file requirements.txt  $CHANNELS --override-channels 
 else
     echo "Now creating conda environment j_frisen_1602";
-    conda create $USROPT -n j_frisen_1602  --file requirements.txt;
+    conda create $USROPT -n j_frisen_1602  --file requirements.txt  $CHANNELS --override-channels
 fi
 gatk-register /media/box2/Experiments/Joanna/bin/downloads/GenomeAnalysisTK-3.6.tar.bz2
 echo "To start conda environment type:"
