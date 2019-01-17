@@ -1,24 +1,18 @@
 # Introduction
 
-This repository aims to provide the tools to replicate bioinformatics
-results obtained in the NBIS long-term support project J_Frisen_1602.
-These tools is set to work in a Unix-like operative system (Linux,
-Unix, MacOSX, cygwin, etc.) and you will need to work from a
-Unix-terminal.
+This repository aims to provide the tools to  bioinformatics results reported in the manuscript **Conbase: a software for unsupervised discovery of clonal somatic mutations in single cells through read phasing** by Hård et al., submitted to *Genome Biology*.These tools is set to work in a Unix-like operative system (Linux, Unix, MacOSX, cygwin, etc.) from a Unix-terminal.
+
+The main aim is documentation of the assembly and analysis pipelines used. The data used in the manuscript is not included in this repository.  
 
 # Results
 
-## Snakemake proceudre for Assembly
+## Snakemake procedures for Assembly and simulations
 
 ### The conda environment
 
 We use a conda environment to set up the software framework needed to
 perform the analyses. You will need to install the miniconda
-program. On UPPMAX, miniconda is available as a module :
-
-module add miniconda3
-
-For other systems, there are good instructions on
+program, there are good instructions on
 http://conda.pydata.org/docs/install/quick.html.
 
 Once, you have miniconda installed, running the script CONDAME.sh:
@@ -50,6 +44,15 @@ and you will return to your standard terminal environment.
 
 There are three separate pipelines:
 
-- The main pipeline, defined in `Snakefile` in the main/base directory perform read-mapping, QC and initial variant-calling of sc data.
-- The second pipeline, defined in `pipeline_lira/Snakefile` describes how LiRA analyses were run
-- The last pipeline, defined in `pipeline_simulation/Snakefile` performs a simulation study, generating synthetic sc data based on observed bulk data, runs Conbase, Monovar, LiRA, and SCcaller variant calling on this data and summarizes the results. NB! The variant calling programs are not installed automatically and their location needs to be given in the file `config_pipeline.yaml`.
+#### The main assembly pipeline
+This is defined in `Snakefile` in the main/base directory perform read-mapping, QC and initial variant-calling of single-cell data.
+
+#### The LiRA pipeline
+This is defined in `pipeline_lira/Snakefile` and describes how analyses using the program LiRA were run. The folder `pipeline_lira/Snakefile` also contain the relevant. See further the README.md file in the folder `pipeline_lira`.
+
+#### The simulation pipeline
+This is defined in `pipeline_simulation/Snakefile` and performs the simulation study from the manuscript, that is, generates synthetic single-cell data based on observed bulk data, runs Conbase, Monovar, LiRA, and SCcaller variant calling on this data and summarizes the results. See further the README.md file in the folder `pipeline_simulation`.
+
+NB! The variant calling programs are not installed automatically and their location needs to be given in the file `config_pipeline.yaml`.
+
+The simulation model description and the scripts used to generate synthetic data can be found in the folder ``simulation``
