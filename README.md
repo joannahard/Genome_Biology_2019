@@ -50,6 +50,8 @@ This is defined in `Snakefile` in the main/base directory perform read-mapping, 
 #### The LiRA pipeline
 This is defined in `pipeline_lira/Snakefile` and describes how analyses using the program LiRA were run. The folder `pipeline_lira/Snakefile` also contain the relevant. See further the README.md file in the folder `pipeline_lira`.
 
+The LiRA code was downloaded from `https://github.com/parklab/LiRA` (latest commit c76e9a7cb34af2e44f38bc324f24521ffc1bad59, from Mon Jun 18 16:12:50 2018), but required some changes to work properly with our setup and our data (especially our simulation data); our changes to the code is collected as a patch in the file `lira_code_changes/lira_sim.patch`. We plan to share relevant changes (that not specific our simualtions) with the LiRA authors as a pull-request to their code repo.
+
 #### The simulation pipeline
 This is defined in `pipeline_simulation/Snakefile` and performs the simulation study from the manuscript, that is, generates synthetic single-cell data based on observed bulk data, runs Conbase, Monovar, LiRA, and SCcaller variant calling on this data and summarizes the results. See further the README.md file in the folder `pipeline_simulation`.
 
