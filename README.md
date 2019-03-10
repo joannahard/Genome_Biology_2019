@@ -26,7 +26,7 @@ a license. Therefore you have to download GATK (v3.6 or which ever is
 specified in requirements.txt) from the website. After activating the
 conda environment you need to run gatk-register e.g.:
 
-gatk-register /media/box2/Experiments/Joanna/bin/downloads/GenomeAnalysisTK-3.6.tar.bz2
+gatk-register bin/downloads/GenomeAnalysisTK-3.6.tar.bz2
 
 You should activate the environment before running snakemake
 
