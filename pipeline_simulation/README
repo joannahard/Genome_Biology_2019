@@ -9,7 +9,7 @@ The simulation model description and the scripts used to generate synthetic data
 
 
 
-To run the pipeline, the conda "snake2" has all requirements - requirements for conda env in requirements_snake2.txt. In addition, conda environment for LiRA is required, more info in folder pipeline_lira.
+To run the pipeline, the conda "snake2" has all requirements - requirements for conda env in requirements_snake2.txt. In addition, conda environment for LiRA is required, more info in folder pipeline_lira. Also, for running SCcaller, another conda env was used, see requirements_sccaller.txt. 
 
 # run full pipeline to merged stats matrix:
 source activate snake2
