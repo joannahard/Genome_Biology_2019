@@ -2,7 +2,7 @@
 
 This repository aims to provide the tools to  bioinformatics results reported in the manuscript **Conbase: a software for unsupervised discovery of clonal somatic mutations in single cells through read phasing** by Hård et al. (*Genome Biology*). These tools is set to work in a Unix-like operative system (Linux, Unix, MacOSX, cygwin, etc.) from a Unix-terminal.
 
-The main aim is documentation of the assembly and analysis pipelines used. The data used in the manuscript is available on https://ega-archive.org/studies/EGAS00001003108.  
+The main aim is documentation of the data analysis pipelines used. The data used in the manuscript is available on https://ega-archive.org/studies/EGAS00001003108.  
 
 # Results
 
