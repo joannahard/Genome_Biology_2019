@@ -1,14 +1,19 @@
-All symlinks were made to all rules files and snakefiles in the directory where the analysis is run:
+# Pipeline for simulation
 
-/media/box2/Experiments/Joanna/Simulering/pipeline - for simulated depth at each allele
-/media/box2/Experiments/Joanna/Simulering/pipeline2 - for flat depth
+Performs the simulation study in the manuscript, that is, generates synthetic single-cell data based on observed bulk data, runs Conbase, Monovar, LiRA, and SCcaller variant calling on the data and summarizes the results. 
 
-To run the pipeline, the conda "snake2" has all requirements.
+NB! The variant calling programs are not installed automatically and their location needs to be given in the file config_pipeline.yaml.
+
+The simulation model description and the scripts used to generate synthetic data can be found in the folder simulation
+
+
+
+
+To run the pipeline, the conda "snake2" has all requirements - requirements for conda env in requirements_snake2.txt. In addition, conda environment for LiRA is required, more info in folder pipeline_lira.
 
 # run full pipeline to merged stats matrix:
 source activate snake2
 snakemake -p -j 80 merge_stats_all
-
 
 # the 2 configfiles are:
 - config_pipeline.yaml - simulated depth
@@ -24,4 +29,4 @@ snakemake -p -j 80 merge_stats_all
 - all_sccaller
 
 
-# summary plotting script is not included in pipeline, they are included in folder scripts/R/
+# summary plotting script is not included in pipeline, they are included in folder scripts/R/ and were run manually.
