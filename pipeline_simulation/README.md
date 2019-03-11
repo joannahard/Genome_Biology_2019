@@ -29,4 +29,4 @@ snakemake -p -j 80 merge_stats_all
 - all_sccaller
 
 
-# summary plotting script is not included in pipeline, they are included in folder scripts/R/ and were run manually.
+NB! summary plotting script is not included in pipeline, they are included in folder scripts/R/ and were run manually.

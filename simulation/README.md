@@ -4,7 +4,7 @@ This folders contains the documentation and implementation of the
 simulation algorithm used in the manuscript.
 
 
-### Folders:
+### Files:
 
 - `scripts/ReadsDb.py`
 	a python implementtion of the simulation algorithm,

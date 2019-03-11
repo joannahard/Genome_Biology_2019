@@ -11,7 +11,7 @@ The main aim is documentation of the data analysis pipelines used. The data used
 ### The conda environments
 
 We have used conda environments to set up the software framework needed to
-perform the analyses (https://docs.conda.io). The required conda-packages are listed in pipeline-spcific `requirements.yaml` file (see below).
+perform the analyses (https://docs.conda.io). The required conda-packages are listed in pipeline-spcific (see below) `requirements.yaml/txt` files  
 
 NB! GATK cannot be installed completely from bioconda since it requires
 a license. Therefore you have to download GATK (v3.6 or which ever is
