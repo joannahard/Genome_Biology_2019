@@ -1,0 +1,156 @@
+diff --git a/global-config.txt b/global-config.txt
+index 08c7471..e598100 100644
+--- a/global-config.txt
++++ b/global-config.txt
+@@ -2,16 +2,16 @@
+ #Values are noted as "<KEY>	<VALUE>"
+ 
+ #Path to snpEff installation
+-SNPEFF	/n/data1/hms/dbmi/park/cbohrson/installed/local/bin/snpEff
++SNPEFF	/media/box2/Experiments/Joanna/bin/miniconda3/envs/LiRA/share/snpsift-4.3.1t-1/
+ 
+ #Path to DBSNP database
+-DBSNP	/n/data1/hms/dbmi/park/cbohrson/common_all_20160601.vcf.gz
++DBSNP	/media/box2/Experiments/Joanna/LiRA/ref_data/common_all_20180423.vcf.gz
+ 
+ #Path to downloaded 1000 genomes haplotype reference panel
+-KGEN	/n/data1/hms/dbmi/park/simon_chu/projects/data/1000G
++KGEN	/media/box2/Experiments/Joanna/LiRA/ref_data/1000G
+ 
+ #Path to picard JAR file
+-PICARD	/n/data1/hms/dbmi/park/cbohrson/installed/local/bin/picard.jar
++PICARD	/media/box2/Experiments/Joanna/bin/miniconda3/pkgs/picard-2.7.1-py27_2/share/picard-2.7.1-2/picard.jar
+ 
+ #Gap between SNPs required for regions to be chunked separately
+ GAP_REQUIREMENT	2000
+@@ -32,7 +32,7 @@ CONTROL_METHOD	germline
+ MAX_DISTANCE_10X	50000
+ 
+ #Script in $LIRA_DIR/scripts to use for parallelization
+-PARALLEL_SCRIPT	slurm.R
++PARALLEL_SCRIPT	serial.R
+ 
+ #Number of sampling replicates to use for CONTROL_METHOD
+ BOOTSTRAP_REPLICATES	100
+diff --git a/scripts/functions.R b/scripts/functions.R
+index cb055fa..540570e 100644
+--- a/scripts/functions.R
++++ b/scripts/functions.R
+@@ -10,7 +10,7 @@ setup <- function(config) {
+   } else if(file.exists(index.possibility.2)) {
+     res <- out.log.cmd(paste("ln -s ",index.possibility.2," reads.bam.bai",sep=""))
+   } else {
+-    stop("Cannot find bam index.")
++    stop(sprintf("Cannot find bam index: %s or %s",index.possibility.1, index.possibility.2))
+   }
+   
+   #soft link vcf
+@@ -66,9 +66,9 @@ annotate.and.phase.vcf <- function(chromosome) {
+                     ifelse(hg19.convert," | sed 's#^#chr#g'",""),
+                     " >> phasing-input.vcf",sep=""))
+   if(config$phasing_software == "shapeit") {
+-    tmp <- paste("[.]chr",gsub("chr","",chromosome),"[.]",sep="")
++    tmp <- paste("[._]chr",gsub("chr","",chromosome),"[._]",sep="")
+     if(chromosome == "X") {
+-      tmp <- ".chrX_(non|NON)PAR."
++      tmp <- "[._]chrX_(non|NON)PAR."
+       sex <- data.frame(sample=config$sample,sex=ifelse(config$gender == "male",1,2))
+       write.table(x = sex,file = "sex.ped",quote = F,sep = "\t",row.names = F,col.names = F)
+       add.args <- "--chrX --input-sex sex.ped"
+@@ -93,6 +93,8 @@ annotate.and.phase.vcf <- function(chromosome) {
+     if(hg19.convert) {
+       out.log("Reformat phased vcf")
+       out.log.cmd("sed -i 's#^chr##g' phasing-output.vcf && bgzip phasing-output.vcf && tabix -f phasing-output.vcf.gz")
++    }else{
++      out.log.cmd("bgzip phasing-output.vcf && tabix -f phasing-output.vcf.gz")	
+     }
+   } else if(config$phasing_software == "eagle") {
+     out.log("Run eagle")
+@@ -163,7 +165,8 @@ local.region.function <- function(config,work.dir) {
+   
+   wrapper <- function() {
+     out.log(paste("Getting pileup by read (output: ",work.dir,"/sites.by.read.txt)",sep=""))
+-    out <- out.log.cmd(paste("$LIRA_DIR/scripts/linkage.py --bam ",config$analysis_path,"/reads.bam --fasta ",config$reference_file," --bed sites.bed > sites.by.read.txt",sep=""))
++    out <- out.log.cmd(paste("python $LIRA_DIR/scripts/linkage.py --bam ",config$analysis_path,"/reads.bam --fasta ",config$reference," --bed sites.bed > sites.by.read.txt",sep=""))
++
+     
+     if(as.numeric(system(paste("wc -l sites.by.read.txt | tr ' ' '\t' | cut -f 1",sep=""),intern=T)) == 0) {
+       linkage <- data.frame(RR=numeric(0),RV=numeric(0),VR=numeric(0),VV=numeric(0))
+@@ -272,7 +275,7 @@ local.region.function <- function(config,work.dir) {
+   get_alt_counts <- function() {
+     cmd <- paste(c(paste("bcftools query -i 'TYPE=\"snp\" & N_ALT=1' -R targets -f '",c("%CHROM\\t%POS","%CHROM;%POS;%REF;%ALT"),"\\n' ",config$vcf," 2> /dev/null ",c(" | awk '{print $1\"\\t\"$2-1\"\\t\"$2}' > .tmp1"," > .tmp2"),sep="",collapse=" && "),
+                    "echo \"id\tA\tC\tG\tT\" > alt-counts.txt",
+-                   paste("$LIRA_DIR/scripts/bulk_check.py --bam ",config$bam," --bed .tmp1 > .tmp3",sep=""),
++                   paste("python $LIRA_DIR/scripts/bulk_check.py --bam ",config$bam," --bed .tmp1 > .tmp3",sep=""),
+                    "paste .tmp2 .tmp3 >> alt-counts.txt",
+                    "rm .tmp1",
+                    "rm .tmp2",
+@@ -1693,4 +1696,4 @@ joint.subset <- function(config,bulk.config,work.dir) {
+   ssnvs$cell <- config$name
+   rownames(ssnvs) <- NULL
+   save(ssnvs,file=paste(config$name,".rda",sep=""))
+-}
+\ No newline at end of file
++}
+diff --git a/scripts/main.R b/scripts/main.R
+index 0277082..5901432 100644
+--- a/scripts/main.R
++++ b/scripts/main.R
+@@ -134,6 +134,8 @@ if(cmd == "plink") {
+   if(tot > 0) {
+     res <- job.loop(batches,names(batches))
+   }
++  done.file <- "plink_done"
++  file.create(done.file)	
+ }
+ 
+ if(cmd == "local_region_function") {
+@@ -326,4 +328,4 @@ if(!(cmd %in% c("null_command","joint"))) {
+ 
+ if(cmd != "null_command") {
+   setwd(owd)
+-}
+\ No newline at end of file
++}
+diff --git a/scripts/serial.R b/scripts/serial.R
+index d1d0c35..b5cc585 100644
+--- a/scripts/serial.R
++++ b/scripts/serial.R
+@@ -13,6 +13,7 @@ check.jobs <- function(job.names) {
+ #Given a vector of bash commands and corresponding job IDs (in the slurm case, names), this should submit jobs and return TRUE if the submission was successful, FALSE otherwise.
+ submit.jobs <- function(bash.commands, job.ids) {
+   for(b in bash.commands) {
++    print(b)
+     system(b)
+   }
+   return(T)
+diff --git a/scripts/utils.R b/scripts/utils.R
+index 480a81b..1fe8dcf 100644
+--- a/scripts/utils.R
++++ b/scripts/utils.R
+@@ -77,14 +77,14 @@ read.config <- function(config.path) {
+ 
+ get.chromosomes <- function(config) {
+   if(config$reference_identifier %in% c("GRCh37","hg38")) {
+-    chromosomes <- paste("chr",1:22,sep="")
++    chromosomes <- as.character(1:22)
+     if(config$gender == "female") {
+-      chromosomes <- c(chromosomes,"chrX")
++      chromosomes <- c(chromosomes,"X")
+     }
+   } else if(config$reference_identifier == "hg19") {
+-    chromosomes <- as.character(1:22)
++    chromosomes <- paste("chr",1:22,sep="")
+     if(config$gender == "female") {
+-      chromosomes <- c(chromosomes,"X")
++      chromosomes <- c(chromosomes,"chrX")
+     }
+   } else {
+     stop("Cannot get chromosomes.")
+@@ -176,4 +176,4 @@ combine.objects <- function(in.list) {
+     }
+     return(vec)
+   }
+-}
+\ No newline at end of file
++}
